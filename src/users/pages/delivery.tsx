@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { ComponentType } from "react"
 import { format, parseISO } from "date-fns"
-import { motion, AnimatePresence } from "motion/react"
+import { motion } from "motion/react"
 import { toast } from "sonner"
 import {
   CalendarDays,
@@ -317,9 +317,6 @@ export function UserDelivery() {
   const [historySearch, setHistorySearch] = useState("")
   const [historySort, setHistorySort] = useState<"newest" | "oldest">("newest")
 
-  const [isStatusSelectOpen, setIsStatusSelectOpen] = useState(false)
-  const [needsStatusSelection, setNeedsStatusSelection] = useState(false)
-
   const [pendingStatusChange, setPendingStatusChange] = useState<PendingStatusChange | null>(
     null
   )
@@ -502,11 +499,6 @@ export function UserDelivery() {
     })
   }
 
-  const getActiveItem = () => {
-    const day = recordsByDate[selectedDateKey]
-    return day?.[activeCategory] || null
-  }
-
   const updateDeliveryItem = (
     dateKey: string,
     categoryKey: DeliveryCategoryKey,
@@ -527,32 +519,6 @@ export function UserDelivery() {
         },
       }
     })
-  }
-
-  const requestStatusChange = (
-    dateKey: string,
-    categoryKey: DeliveryCategoryKey,
-    nextStatus: DeliveryStatus
-  ) => {
-    const day = recordsByDate[dateKey]
-    const current = day?.[categoryKey]
-    if (!day || !current) return
-
-    if (current.status === nextStatus) {
-      updateDeliveryItem(dateKey, categoryKey, { statusTouched: true })
-      return
-    }
-
-    updateDeliveryItem(dateKey, categoryKey, { statusTouched: true })
-
-    setPendingStatusChange({
-      dateKey,
-      categoryKey,
-      from: current.status,
-      to: nextStatus,
-    })
-    setStatusReasonDraft("")
-    setStatusTimestampDraft(new Date().toISOString())
   }
 
   const confirmStatusChange = () => {
@@ -657,55 +623,6 @@ export function UserDelivery() {
         },
       }
     })
-  }
-
-  const goNextCategory = () => {
-    const idx = CATEGORY_OPTIONS.findIndex((c) => c.key === activeCategory)
-    const next = CATEGORY_OPTIONS[idx + 1]
-    if (next) setActiveCategory(next.key)
-  }
-
-  const goPrevCategory = () => {
-    const idx = CATEGORY_OPTIONS.findIndex((c) => c.key === activeCategory)
-    const prev = CATEGORY_OPTIONS[idx - 1]
-    if (prev) setActiveCategory(prev.key)
-  }
-
-  const submitAndNext = async () => {
-    const item = getActiveItem()
-    if (!item) {
-      goNextCategory()
-      return
-    }
-
-    if (!item.statusTouched) {
-      setNeedsStatusSelection(true)
-      setIsStatusSelectOpen(true)
-      toast.error("Please select a status before continuing.")
-      return
-    }
-
-    if (!item.uploadedAt) {
-      updateDeliveryItem(selectedDateKey, activeCategory, {
-        uploadedAt: new Date().toISOString(),
-      })
-    }
-
-    try {
-      await saveActiveItemToBackend(selectedDateKey, activeCategory)
-
-      setSuccessModalOpen(true)
-      if (successTimerRef.current) {
-        window.clearTimeout(successTimerRef.current)
-        successTimerRef.current = null
-      }
-      successTimerRef.current = window.setTimeout(() => {
-        setSuccessModalOpen(false)
-        goNextCategory()
-      }, 900)
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to save")
-    }
   }
 
   const historyRows = useMemo(() => {
