@@ -37,7 +37,8 @@ export function LoginPage({
   const [phase, setPhase] = useState<"form" | "loading">("form")
 
   const apiBaseUrl = useMemo(() => {
-    const fromEnv = (import.meta as any)?.env?.VITE_API_URL as string | undefined
+    const envAny = (import.meta as any)?.env as any
+    const fromEnv = (envAny?.VITE_API_BASE_URL || envAny?.VITE_API_URL) as string | undefined
     return (fromEnv || "http://localhost:8000").replace(/\/+$/, "")
   }, [])
 
