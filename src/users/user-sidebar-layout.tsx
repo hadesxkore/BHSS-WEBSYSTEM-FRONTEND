@@ -523,10 +523,15 @@ export function UserSidebarLayout({
 
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         try {
+          const timeText = formatClockTime(Date.now())
+          const bodyBase = `${title} • ${message}`
+          const bodyWithTime = timeText ? `${bodyBase} • ${timeText}` : bodyBase
           const n = new Notification("New event scheduled", {
-            body: `${title} • ${message}`,
+            body: bodyWithTime,
             silent: false,
             tag: notificationId,
+            icon: "/images/bhsslogo.png",
+            badge: "/images/bhsslogo.png",
           })
           setTimeout(() => n.close(), 5000)
         } catch {
@@ -571,10 +576,14 @@ export function UserSidebarLayout({
 
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         try {
+          const timeText = formatClockTime(Date.now())
+          const bodyWithTime = timeText ? `${title} • ${timeText}` : title
           const n = new Notification("New announcement", {
-            body: title,
+            body: bodyWithTime,
             silent: false,
             tag: notificationId,
+            icon: "/images/bhsslogo.png",
+            badge: "/images/bhsslogo.png",
           })
           setTimeout(() => n.close(), 5000)
         } catch {
@@ -621,10 +630,15 @@ export function UserSidebarLayout({
 
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         try {
+          const timeText = formatClockTime(Date.now())
+          const bodyBase = `${title} • ${message}${reason ? ` • ${reason}` : ""}`
+          const bodyWithTime = timeText ? `${bodyBase} • ${timeText}` : bodyBase
           const n = new Notification("Event cancelled", {
-            body: `${title} • ${message}${reason ? ` • ${reason}` : ""}`,
+            body: bodyWithTime,
             silent: false,
             tag: `${notificationId}-cancelled`,
+            icon: "/images/bhsslogo.png",
+            badge: "/images/bhsslogo.png",
           })
           setTimeout(() => n.close(), 6000)
         } catch {

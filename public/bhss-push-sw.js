@@ -7,11 +7,21 @@ self.addEventListener("push", (event) => {
   }
 
   const title = data.title || "BHSS Notification"
+  let timeText = ""
+  try {
+    timeText = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+  } catch {
+    timeText = ""
+  }
+  const bodyBase = data.body || ""
+  const body = bodyBase && timeText ? `${bodyBase} • ${timeText}` : bodyBase || timeText
   const options = {
-    body: data.body || "",
+    body,
     data: { url: data.url || "/" },
     tag: data.tag || "bhss-notification",
     renotify: true,
+    icon: data.icon || "/images/bhsslogo.png",
+    badge: data.badge || "/images/bhsslogo.png",
   }
 
   event.waitUntil(self.registration.showNotification(title, options))

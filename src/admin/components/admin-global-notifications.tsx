@@ -8,6 +8,17 @@ function getApiBaseUrl() {
   return (fromEnv || "http://localhost:8000").replace(/\/+$/, "")
 }
 
+function formatClockTimeNow() {
+  try {
+    return new Date().toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    })
+  } catch {
+    return ""
+  }
+}
+
 type AttendanceSavedPayload = {
   record?: {
     id?: string
@@ -56,6 +67,8 @@ export function AdminGlobalNotifications() {
 
       const title = "New attendance saved"
       const body = `${school || "(school)"} • ${grade || "(grade)"} • ${dateKey || "(date)"}`
+      const timeText = formatClockTimeNow()
+      const bodyWithTime = timeText ? `${body} • ${timeText}` : body
 
       notify({
         variant: "success",
@@ -67,9 +80,11 @@ export function AdminGlobalNotifications() {
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         try {
           const n = new Notification(title, {
-            body,
+            body: bodyWithTime,
             silent: false,
             tag: notificationId,
+            icon: "/images/bhsslogo.png",
+            badge: "/images/bhsslogo.png",
           })
           setTimeout(() => n.close(), 5000)
         } catch {
@@ -91,6 +106,8 @@ export function AdminGlobalNotifications() {
 
       const title = "New delivery saved"
       const body = `${school || "(school)"} • ${categoryLabel || "(category)"} • ${dateKey || "(date)"}`
+      const timeText = formatClockTimeNow()
+      const bodyWithTime = timeText ? `${body} • ${timeText}` : body
 
       notify({
         variant: "success",
@@ -102,9 +119,11 @@ export function AdminGlobalNotifications() {
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         try {
           const n = new Notification(title, {
-            body,
+            body: bodyWithTime,
             silent: false,
             tag: notificationId,
+            icon: "/images/bhsslogo.png",
+            badge: "/images/bhsslogo.png",
           })
           setTimeout(() => n.close(), 5000)
         } catch {
