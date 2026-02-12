@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { addDays, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, startOfMonth, startOfWeek, subMonths, addMonths } from "date-fns"
 import { CalendarDays, ChevronLeft, ChevronRight, Paperclip } from "lucide-react"
 import { toast } from "sonner"
+import { io, type Socket } from "socket.io-client"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -179,7 +180,7 @@ export function AdminEventCalendar() {
     return m
   }, [events])
 
-  async function load() {
+  const load = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
@@ -194,11 +195,32 @@ export function AdminEventCalendar() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [range.from, range.to])
 
   useEffect(() => {
     load()
-  }, [range.from, range.to])
+  }, [load])
+
+  useEffect(() => {
+    const socket: Socket = io(getApiBaseUrl(), { transports: ["websocket"] })
+
+    const refresh = () => {
+      load().catch(() => {
+        // ignore
+      })
+    }
+
+    socket.on("event:created", refresh)
+    socket.on("event:cancelled", refresh)
+
+    return () => {
+      try {
+        socket.disconnect()
+      } catch {
+        // ignore
+      }
+    }
+  }, [load])
 
   useEffect(() => {
     if (!selectedEvent) return

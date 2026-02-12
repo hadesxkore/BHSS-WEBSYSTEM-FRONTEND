@@ -1,5 +1,4 @@
 import type React from "react"
-import { useState } from "react"
 import {
   LayoutDashboard,
   Building2,
@@ -33,11 +32,22 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { useAdminNavStore } from "./admin-nav-store"
 import { Dashboard } from "./pages/dashboard"
 import { SchoolDirectory } from "./pages/school-directory"
 import { DataAnalysis } from "./pages/data-analysis"
 import { Procurement } from "./pages/procurement"
-import { Distribution } from "./pages/distribution"
+import {
+  Distribution,
+  DistributionConsumables,
+  DistributionEquipments,
+  DistributionFruitsVeggies,
+  DistributionGrocery,
+  DistributionLpg,
+  DistributionMeat,
+  DistributionRice,
+  DistributionWater,
+} from "./pages/distribution"
 import { Attendance } from "./pages/attendance"
 import { AdminUsers } from "./pages/users"
 import { AdminDelivery } from "./pages/delivery"
@@ -113,6 +123,40 @@ const menuItems: MenuItem[] = [
     title: "Distribution",
     icon: Package,
     component: Distribution,
+    subItems: [
+      {
+        title: "Rice Distribution",
+        component: DistributionRice,
+      },
+      {
+        title: "Water",
+        component: DistributionWater,
+      },
+      {
+        title: "LPG",
+        component: DistributionLpg,
+      },
+      {
+        title: "Fruits & Veggies",
+        component: DistributionFruitsVeggies,
+      },
+      {
+        title: "Equipments",
+        component: DistributionEquipments,
+      },
+      {
+        title: "Grocery",
+        component: DistributionGrocery,
+      },
+      {
+        title: "Consumables",
+        component: DistributionConsumables,
+      },
+      {
+        title: "Meat",
+        component: DistributionMeat,
+      },
+    ],
   },
   {
     title: "Attendance",
@@ -130,7 +174,8 @@ export function AdminSidebarLayout({
   userEmail,
   onLogout,
 }: AdminSidebarLayoutProps) {
-  const [activeItem, setActiveItem] = useState("Dashboard")
+  const activeItem = useAdminNavStore((s) => s.activeItem)
+  const setActiveItem = useAdminNavStore((s) => s.setActiveItem)
 
   const ActiveComponent = (() => {
     for (const item of menuItems) {

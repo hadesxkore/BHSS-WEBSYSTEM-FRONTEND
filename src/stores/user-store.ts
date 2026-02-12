@@ -2,7 +2,7 @@ import { create } from "zustand"
 
 export type BhssUser = {
   id: string
-  email: string
+  email?: string
   username: string
   name: string
   school: string
@@ -17,7 +17,7 @@ export type BhssUser = {
 }
 
 export type CreateBhssUserInput = {
-  email: string
+  email?: string
   username: string
   password: string
   name: string
@@ -106,7 +106,13 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const data = (await apiFetch("/api/users")) as { users: BhssUser[] }
-      set({ users: Array.isArray(data.users) ? data.users : [] })
+      const next = Array.isArray(data.users)
+        ? data.users.map((u: any) => ({
+            ...u,
+            email: typeof u?.email === "string" ? u.email : "",
+          }))
+        : []
+      set({ users: next })
     } catch (e: any) {
       set({ error: e?.message || "Failed to load users" })
     } finally {
@@ -117,10 +123,11 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
   createUser: async (input) => {
     set({ isLoading: true, error: null })
     try {
+      const email = String(input.email || "").trim()
       await apiFetch("/api/users", {
         method: "POST",
         body: JSON.stringify({
-          email: input.email,
+          ...(email ? { email } : {}),
           username: input.username,
           password: input.password,
           name: input.name,

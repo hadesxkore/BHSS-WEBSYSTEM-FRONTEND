@@ -253,6 +253,14 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
     useState<AnnouncementDetailsResponse["announcement"] | null>(null)
   const [isDetailsLoading, setIsDetailsLoading] = useState(false)
 
+  const [pendingOpen, setPendingOpen] = useState<
+    | {
+        kind: "announcement" | "event"
+        sourceId: string
+      }
+    | null
+  >(null)
+
   const [createOpen, setCreateOpen] = useState(false)
   const [createTitle, setCreateTitle] = useState("")
   const [createMessage, setCreateMessage] = useState("")
@@ -263,6 +271,28 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
   const createFilesInputRef = useRef<HTMLInputElement | null>(null)
 
   const PAGE_SIZE = 10
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("bhss_notif_intent")
+      if (!raw) return
+      const parsed = JSON.parse(raw) as any
+      if (!parsed?.kind || !parsed?.sourceId) return
+
+      localStorage.removeItem("bhss_notif_intent")
+
+      const kind = String(parsed.kind)
+      const sourceId = String(parsed.sourceId)
+      if (kind !== "announcement" && kind !== "event") return
+      if (!sourceId.trim()) return
+
+      setPendingOpen({ kind: kind as any, sourceId })
+      if (kind === "announcement") setActiveTab("announcements")
+      if (kind === "event") setActiveTab("events")
+    } catch {
+      // ignore
+    }
+  }, [])
   const [page, setPage] = useState(1)
 
   const loadAll = async () => {
@@ -508,6 +538,34 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
       setIsDetailsLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!pendingOpen) return
+    if (isLoading) return
+    if (pendingOpen.kind !== "announcement") return
+
+    const sourceId = String(pendingOpen.sourceId || "").trim()
+    if (!sourceId) {
+      setPendingOpen(null)
+      return
+    }
+
+    const match = announcements.find((x) => x.kind === "announcement" && String(x.sourceId) === sourceId)
+    const it: FeedItem =
+      match ||
+      ({
+        id: `announcement-${sourceId}`,
+        kind: "announcement",
+        sourceId,
+        title: "Announcement",
+        subtitle: "",
+        createdAt: Date.now(),
+      } as FeedItem)
+
+    openDetails(it).finally(() => {
+      setPendingOpen(null)
+    })
+  }, [announcements, isLoading, pendingOpen])
 
   const createAnnouncement = async () => {
     const title = createTitle.trim()

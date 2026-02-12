@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   addDays,
   addMonths,
@@ -12,6 +12,7 @@ import {
   subMonths,
 } from "date-fns"
 import { CalendarDays, ChevronLeft, ChevronRight, Paperclip } from "lucide-react"
+import { io, type Socket } from "socket.io-client"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -107,6 +108,8 @@ export function UserEventCalendar() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [pendingOpenEventId, setPendingOpenEventId] = useState<string | null>(null)
+
   const [openDayKey, setOpenDayKey] = useState<string | null>(null)
 
   const [viewOpen, setViewOpen] = useState(false)
@@ -149,7 +152,7 @@ export function UserEventCalendar() {
     return m
   }, [events])
 
-  async function load() {
+  const load = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
@@ -162,11 +165,80 @@ export function UserEventCalendar() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [range.from, range.to])
 
   useEffect(() => {
     load()
-  }, [range.from, range.to])
+  }, [load])
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("bhss_notif_intent")
+      if (!raw) return
+      const parsed = JSON.parse(raw) as any
+      if (String(parsed?.kind || "") !== "event") return
+
+      const sourceId = String(parsed?.sourceId || "").trim()
+      const dateKey = String(parsed?.dateKey || "").trim()
+      if (!sourceId) return
+
+      localStorage.removeItem("bhss_notif_intent")
+      setPendingOpenEventId(sourceId)
+
+      if (dateKey) {
+        try {
+          const d = new Date(`${dateKey}T00:00:00`)
+          if (!Number.isNaN(d.getTime())) setMonth(startOfMonth(d))
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!pendingOpenEventId) return
+    if (isLoading) return
+
+    const id = pendingOpenEventId
+    const found = events.find((e) => String(e._id || e.id || "").trim() === id)
+    const stub: CalendarEvent =
+      found ||
+      ({
+        id,
+        title: "Event",
+        dateKey: asKey(new Date()),
+        startTime: "",
+        endTime: "",
+      } as CalendarEvent)
+
+    openDetails(stub).finally(() => {
+      setPendingOpenEventId(null)
+    })
+  }, [events, isLoading, pendingOpenEventId])
+
+  useEffect(() => {
+    const socket: Socket = io(getApiBaseUrl(), { transports: ["websocket"] })
+
+    const refresh = () => {
+      load().catch(() => {
+        // ignore
+      })
+    }
+
+    socket.on("event:created", refresh)
+    socket.on("event:cancelled", refresh)
+
+    return () => {
+      try {
+        socket.disconnect()
+      } catch {
+        // ignore
+      }
+    }
+  }, [load])
 
   function openViewEvents(dateKey: string) {
     setOpenDayKey(null)

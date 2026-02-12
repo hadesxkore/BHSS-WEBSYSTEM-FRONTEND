@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { ChevronRight, Image as ImageIcon, Megaphone } from "lucide-react"
+import { io, type Socket } from "socket.io-client"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -169,17 +170,27 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [selected, setSelected] = useState<Announcement | null>(null)
 
+  const loadAnnouncements = async (opts?: { showLoading?: boolean }) => {
+    const showLoading = opts?.showLoading !== false
+    if (showLoading) setIsLoading(true)
+    setError(null)
+    const res = (await apiFetch("/api/announcements")) as { announcements?: Announcement[] }
+    const list = Array.isArray(res?.announcements) ? res.announcements : []
+    list.sort((a, b) => {
+      const aTs = a?.createdAt ? new Date(a.createdAt).getTime() : 0
+      const bTs = b?.createdAt ? new Date(b.createdAt).getTime() : 0
+      return bTs - aTs
+    })
+    setItems(list)
+    if (showLoading) setIsLoading(false)
+  }
+
   useEffect(() => {
     let cancelled = false
 
     async function run() {
-      setIsLoading(true)
-      setError(null)
       try {
-        const res = (await apiFetch("/api/announcements")) as { announcements?: Announcement[] }
-        if (cancelled) return
-        const list = Array.isArray(res?.announcements) ? res.announcements : []
-        setItems(list)
+        await loadAnnouncements({ showLoading: true })
       } catch (e: any) {
         if (cancelled) return
         setError(e?.message || "Failed to load announcements")
@@ -191,6 +202,29 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
     run()
     return () => {
       cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let socket: Socket | null = null
+
+    try {
+      socket = io(getApiBaseUrl(), { transports: ["websocket"] })
+      socket.on("announcement:created", () => {
+        loadAnnouncements({ showLoading: false }).catch(() => {
+          // ignore (keeps existing list)
+        })
+      })
+    } catch {
+      // ignore
+    }
+
+    return () => {
+      try {
+        socket?.disconnect()
+      } catch {
+        // ignore
+      }
     }
   }, [])
 
@@ -260,7 +294,7 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
                   }}
                   className="group overflow-hidden rounded-2xl border border-black/5 bg-white/60 hover:bg-white/75 transition-colors"
                 >
-                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100">
+                  <div className="relative h-40 w-full overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 sm:h-44">
                     {imageUrls.length > 1 ? (
                       <AutoCarousel className="h-full w-full">
                         <CarouselContent className="h-full">
@@ -270,7 +304,7 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
                                 <img
                                   src={url}
                                   alt={`${title} image ${idx + 1}`}
-                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                                  className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                                   loading="lazy"
                                 />
                               </div>
@@ -290,7 +324,7 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
                       <img
                         src={previewUrl}
                         alt={title}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                        className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                         loading="lazy"
                       />
                     ) : (
@@ -364,17 +398,17 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-black/5 bg-white/50">
-            <div className="relative aspect-[16/9] w-full overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100">
+            <div className="relative w-full overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-2">
               {selectedImageUrls.length > 1 ? (
                 <AutoCarousel className="h-full w-full" delayMs={3200}>
                   <CarouselContent className="h-full">
                     {selectedImageUrls.map((url, idx) => (
                       <CarouselItem key={`selected-img-${idx}`} className="h-full">
-                        <div className="h-full w-full">
+                        <div className="flex h-full w-full items-center justify-center">
                           <img
                             src={url}
                             alt={`${safeText(selected?.title) || "Announcement"} image ${idx + 1}`}
-                            className="h-full w-full object-cover"
+                            className="h-auto w-auto max-h-[55vh] max-w-full object-contain sm:max-h-[60vh]"
                             loading="lazy"
                           />
                         </div>
@@ -391,12 +425,14 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
                   />
                 </AutoCarousel>
               ) : selectedImageUrls.length === 1 ? (
-                <img
-                  src={selectedImageUrls[0]}
-                  alt={safeText(selected?.title) || "Announcement"}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
+                <div className="flex h-full w-full items-center justify-center">
+                  <img
+                    src={selectedImageUrls[0]}
+                    alt={safeText(selected?.title) || "Announcement"}
+                    className="h-auto w-auto max-h-[55vh] max-w-full object-contain sm:max-h-[60vh]"
+                    loading="lazy"
+                  />
+                </div>
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-slate-400">
                   <div className="flex items-center gap-2 text-xs font-medium">

@@ -56,12 +56,15 @@ import {
 } from "@/components/ui/pagination"
 import { Switch } from "@/components/ui/switch"
 import { type BhssUser, useUserStore } from "@/stores/user-store"
+import { useSchoolDirectoryStore } from "@/stores/school-directory-store"
 
 const BATAAN_MUNICIPALITIES = [
   "Abucay",
   "Bagac",
   "Balanga City",
   "Dinalupihan",
+  "Dinalupihan East",
+  "Dinalupihan West",
   "Hermosa",
   "Limay",
   "Mariveles",
@@ -74,12 +77,12 @@ const BATAAN_MUNICIPALITIES = [
 
 const createUserSchema = z
   .object({
-    email: z.string().min(2, "Email/Facebook is required"),
-    contactNumber: z.string().min(7, "Contact number is required"),
-    schoolAddress: z.string().min(2, "School address is required"),
+    email: z.string().optional(),
+    contactNumber: z.string().optional(),
+    schoolAddress: z.string().optional(),
     municipality: z.string().min(2, "Municipality is required"),
     schoolName: z.string().min(2, "School name is required"),
-    name: z.string().min(2, "HLA Manager is required"),
+    name: z.string().optional(),
     username: z.string().min(3, "Username must be at least 3 characters"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string().min(6, "Confirm password is required"),
@@ -92,16 +95,16 @@ const createUserSchema = z
 type CreateUserFormValues = z.infer<typeof createUserSchema>
 
 const editUserSchema = z.object({
-  email: z.string().min(2, "Email/Facebook is required"),
-  contactNumber: z.string().min(7, "Contact number is required"),
-  schoolAddress: z.string().min(2, "School address is required"),
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  name: z.string().min(2, "HLA Manager is required"),
-  role: z.enum(["user", "admin"]),
-  school: z.string().min(2, "School is required"),
-  municipality: z.string().min(2, "Municipality is required"),
-  province: z.string().min(2, "Province is required"),
-  isActive: z.boolean(),
+  email: z.string().optional(),
+  contactNumber: z.string().optional(),
+  schoolAddress: z.string().optional(),
+  username: z.string().optional(),
+  name: z.string().optional(),
+  role: z.enum(["user", "admin"]).optional(),
+  school: z.string().optional(),
+  municipality: z.string().optional(),
+  province: z.string().optional(),
+  isActive: z.boolean().optional(),
 })
 
 type EditUserFormValues = z.infer<typeof editUserSchema>
@@ -140,6 +143,10 @@ export function AdminUsers() {
   const [createDialogTab, setCreateDialogTab] = useState<"info" | "account">(
     "info"
   )
+
+  const schoolYear = "2025-2026"
+  const detailsRows = useSchoolDirectoryStore((s) => s.detailsRows)
+  const fetchDetails = useSchoolDirectoryStore((s) => s.fetchDetails)
 
   const pageSize = 10
 
@@ -233,13 +240,62 @@ export function AdminUsers() {
     fetchUsers()
   }, [fetchUsers])
 
+  const createMunicipality = form.watch("municipality")
+  const createSchoolName = form.watch("schoolName")
+
+  const norm = (v: unknown) => String(v || "").trim().toLowerCase()
+
+  useEffect(() => {
+    if (!isDialogOpen) return
+    form.setValue("schoolName", "", { shouldDirty: true })
+  }, [createMunicipality, form, isDialogOpen])
+
+  useEffect(() => {
+    if (!isDialogOpen) return
+    const m = String(createMunicipality || "").trim()
+    if (!m) return
+    fetchDetails(m, schoolYear).catch(() => {
+      // ignore
+    })
+  }, [createMunicipality, fetchDetails, isDialogOpen, schoolYear])
+
+  const schoolOptions = useMemo(() => {
+    const m = String(createMunicipality || "").trim()
+    if (!m) return []
+
+    const taken = new Set(
+      (users || [])
+        .filter((u) => norm(u.municipality) === norm(m))
+        .map((u) => norm(u.school))
+        .filter(Boolean)
+    )
+
+    return (detailsRows || [])
+      .filter((r) => r.municipality === m && r.schoolYear === schoolYear)
+      .map((r) => ({
+        id: r.id,
+        label: r.completeName,
+      }))
+      .filter((x) => String(x.label || "").trim())
+      .filter((x) => !taken.has(norm(x.label)))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [createMunicipality, detailsRows, schoolYear, users])
+
+  useEffect(() => {
+    if (!isDialogOpen) return
+    const cur = String(createSchoolName || "").trim()
+    if (!cur) return
+    if (schoolOptions.some((s) => String(s.label || "").trim() === cur)) return
+    form.setValue("schoolName", "", { shouldDirty: true })
+  }, [createSchoolName, form, isDialogOpen, schoolOptions])
+
   const onSubmit: SubmitHandler<CreateUserFormValues> = async (values) => {
     try {
       await createUser({
         email: values.email,
         username: values.username,
         password: values.password,
-        name: values.name,
+        name: values.name || values.username,
         school: values.schoolName,
         municipality: values.municipality,
         province: "Bataan",
@@ -295,18 +351,35 @@ export function AdminUsers() {
   const onEditSubmit: SubmitHandler<EditUserFormValues> = async (values) => {
     if (!editingUser) return
     try {
-      await updateUser(editingUser.id, {
-        email: values.email,
-        contactNumber: values.contactNumber,
-        schoolAddress: values.schoolAddress,
-        username: values.username,
-        name: values.name,
-        role: values.role,
-        school: values.school,
-        municipality: values.municipality,
-        province: values.province,
-        isActive: values.isActive,
-      })
+      const dirty = (editForm.formState.dirtyFields || {}) as any
+      const next: any = {}
+
+      const maybeSet = (key: keyof EditUserFormValues, value: any) => {
+        if (!dirty?.[key]) return
+        next[key] = value
+      }
+
+      maybeSet("contactNumber", values.contactNumber)
+      maybeSet("schoolAddress", values.schoolAddress)
+      maybeSet("username", values.username)
+      maybeSet("name", values.name)
+      maybeSet("role", values.role)
+      maybeSet("school", values.school)
+      maybeSet("municipality", values.municipality)
+      maybeSet("province", values.province)
+      maybeSet("isActive", values.isActive)
+
+      if (dirty?.email) {
+        const email = String(values.email || "").trim()
+        if (email) next.email = email
+      }
+
+      if (Object.keys(next).length === 0) {
+        toast.message("No changes to save")
+        return
+      }
+
+      await updateUser(editingUser.id, next)
       toast.success("User updated successfully")
       setIsEditDialogOpen(false)
       setEditingUser(null)
@@ -430,7 +503,44 @@ export function AdminUsers() {
 
                     <div className="grid gap-2">
                       <Label htmlFor="schoolName">School Name</Label>
-                      <Input id="schoolName" {...form.register("schoolName")} />
+                      <Select
+                        value={createSchoolName}
+                        onValueChange={(value) => {
+                          form.setValue("schoolName", value, {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                          })
+
+                          const m = String(createMunicipality || "").trim()
+                          const row = (detailsRows || []).find(
+                            (r) => r.municipality === m && r.schoolYear === schoolYear && r.completeName === value
+                          )
+
+                          if (row) {
+                            const maybeSet = (key: keyof CreateUserFormValues, v: string) => {
+                              const dirty = !!(form.formState.dirtyFields as any)?.[key]
+                              if (dirty) return
+                              form.setValue(key as any, v, { shouldValidate: true })
+                            }
+
+                            maybeSet("name", String(row.hlaManagerName || "").trim())
+                            maybeSet("contactNumber", String(row.hlaManagerContact || "").trim())
+                            maybeSet("email", String(row.hlaManagerFacebook || "").trim())
+                          }
+                        }}
+                        disabled={!createMunicipality}
+                      >
+                        <SelectTrigger id="schoolName">
+                          <SelectValue placeholder={createMunicipality ? "Select school" : "Select municipality first"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {schoolOptions.map((s) => (
+                            <SelectItem key={s.id} value={s.label}>
+                              {s.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       {form.formState.errors.schoolName?.message && (
                         <p className="text-sm text-destructive">
                           {form.formState.errors.schoolName.message as any}
@@ -442,9 +552,7 @@ export function AdminUsers() {
                       <Label htmlFor="name">HLA Manager</Label>
                       <Input id="name" {...form.register("name")} />
                       {form.formState.errors.name?.message && (
-                        <p className="text-sm text-destructive">
-                          {form.formState.errors.name.message as any}
-                        </p>
+                        <p className="text-sm text-destructive">{form.formState.errors.name.message as any}</p>
                       )}
                     </div>
                   </div>
@@ -465,7 +573,6 @@ export function AdminUsers() {
                       disabled={isLoading}
                       onClick={async () => {
                         const ok = await form.trigger([
-                          "email",
                           "contactNumber",
                           "schoolAddress",
                           "municipality",

@@ -9,6 +9,6 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
     <InAppNotificationsViewport />
-    <Toaster />
+    <Toaster position="top-right" />
   </StrictMode>,
 )

@@ -23,14 +23,23 @@ import {
   PackageCheck,
   School,
   TrendingUp,
+  TriangleAlert,
   Users,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { AnnouncementsFeedPage } from "@/components/announcements-feed-page"
 import { DashboardAnnouncements } from "../components/dashboard-announcements"
+import { useAdminNavStore } from "../admin-nav-store"
 
 type ActivityItem = {
   id: string
@@ -90,11 +99,17 @@ type AdminDeliveryRecord = {
   dateKey: string
   municipality: string
   school: string
+  userName?: string
+  hlaManagerName?: string
+  username?: string
   categoryKey: string
   categoryLabel: string
   status: "Pending" | "Delivered" | "Delayed" | "Cancelled"
   statusReason?: string
   uploadedAt?: string
+  images?: Array<{ url: string; filename: string }>
+  concerns?: string[]
+  remarks?: string
 }
 
 function useBreakpoint(maxWidth: number) {
@@ -120,6 +135,7 @@ function useBreakpoint(maxWidth: number) {
 }
 
 export function Dashboard() {
+  const setActiveItem = useAdminNavStore((s) => s.setActiveItem)
   const isXs = useBreakpoint(420)
   const isSm = useBreakpoint(640)
 
@@ -139,6 +155,9 @@ export function Dashboard() {
   const [deliveries, setDeliveries] = useState<AdminDeliveryRecord[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const [selectedConcern, setSelectedConcern] = useState<AdminDeliveryRecord | null>(null)
+  const [imagePreviewIndex, setImagePreviewIndex] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -178,6 +197,13 @@ export function Dashboard() {
     attendance.forEach((a) => a.school && s.add(a.school))
     return s.size
   }, [attendance, deliveries])
+
+  const concernDeliveries = useMemo(() => {
+    const rows = (deliveries || []).filter(
+      (d) => Array.isArray((d as any).concerns) && ((d as any).concerns as any[]).length > 0
+    )
+    return rows.slice(0, 6)
+  }, [deliveries])
 
   const beneficiaries7d = useMemo(() => {
     let total = 0
@@ -293,6 +319,8 @@ export function Dashboard() {
           type: "bar",
           toolbar: { show: false },
           fontFamily: "inherit",
+          redrawOnParentResize: true,
+          redrawOnWindowResize: true,
         },
         plotOptions: {
           bar: {
@@ -305,7 +333,7 @@ export function Dashboard() {
         grid: { borderColor: "#e2e8f0", strokeDashArray: 4 },
         xaxis: {
           categories: labels,
-          labels: { style: { colors: "#64748b" } },
+          labels: { style: { colors: "#64748b" }, trim: true },
           axisBorder: { show: false },
           axisTicks: { show: false },
         },
@@ -313,6 +341,7 @@ export function Dashboard() {
           labels: {
             style: { colors: "#475569" },
             maxWidth: isXs ? 90 : 160,
+            trim: true,
           },
         },
         colors: ["#6366f1"],
@@ -322,6 +351,14 @@ export function Dashboard() {
             breakpoint: 420,
             options: {
               plotOptions: { bar: { barHeight: "62%" } },
+              grid: {
+                padding: { left: 4, right: 8 },
+              },
+              yaxis: {
+                labels: {
+                  maxWidth: 70,
+                },
+              },
             },
           },
         ],
@@ -467,6 +504,305 @@ export function Dashboard() {
       </div>
 
       <DashboardAnnouncements onViewAll={() => setActiveView("announcements")} />
+
+      {concernDeliveries.length > 0 ? (
+        <Card className="rounded-2xl border border-black/5 bg-white/60 [@supports(backdrop-filter:blur(0))]:backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_6px_18px_rgba(0,0,0,0.06)]">
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <CardTitle className="flex items-center gap-2">
+                <TriangleAlert className="size-5 text-amber-600" />
+                Delivery Concerns
+              </CardTitle>
+              <div className="text-sm text-muted-foreground truncate">
+                Latest deliveries with reported concerns
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isLoading ? <div className="text-xs text-muted-foreground">Loading…</div> : null}
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-xl"
+                onClick={() => {
+                  setActiveItem("Delivery")
+                }}
+              >
+                View all
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 gap-4 rounded-2xl border bg-white/70 p-4 md:grid-cols-2 xl:grid-cols-3">
+              {concernDeliveries.map((d) => {
+                const who =
+                  String(d.hlaManagerName || "").trim() ||
+                  String(d.userName || "").trim() ||
+                  String(d.username || "").trim() ||
+                  "(unknown)"
+
+                const when = d.uploadedAt ? new Date(d.uploadedAt).toLocaleString() : d.dateKey
+                const concerns = Array.isArray(d.concerns) ? d.concerns : []
+                const concernCount = concerns.length
+
+                const scrollable = concernCount >= 6
+
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className="relative w-full min-w-0 overflow-hidden text-left rounded-2xl border border-black/5 bg-white/80 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/30 md:hover:z-10 md:hover:bg-white md:hover:-translate-y-0.5 md:hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
+                    onClick={() => {
+                      setSelectedConcern(d)
+                      setImagePreviewIndex(null)
+                    }}
+                  >
+                    <div className="flex h-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="min-w-0 flex-1 font-semibold text-neutral-900 truncate">
+                            {d.school || "Unknown School"}
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="rounded-xl border-amber-200 bg-amber-50 text-amber-700"
+                          >
+                            {concernCount} concern{concernCount === 1 ? "" : "s"}
+                          </Badge>
+                          {d.municipality ? (
+                            <Badge variant="secondary" className="rounded-xl">
+                              {d.municipality}
+                            </Badge>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-1 text-sm text-muted-foreground truncate">
+                          {who}
+                          {d.categoryLabel ? ` • ${d.categoryLabel}` : ""}
+                        </div>
+
+                        <div
+                          className={`mt-3 space-y-1 ${scrollable ? "max-h-28 overflow-auto pr-2" : ""}`}
+                        >
+                          {concerns.map((c, idx) => (
+                            <div
+                              key={`${d.id}-c-${idx}`}
+                              className="text-sm text-neutral-800 leading-relaxed"
+                            >
+                              {c}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="text-xs text-muted-foreground break-words sm:whitespace-nowrap">
+                        {when}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Dialog
+        open={!!selectedConcern && imagePreviewIndex === null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedConcern(null)
+            setImagePreviewIndex(null)
+          }
+        }}
+      >
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-5xl max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Delivery Concern Details</DialogTitle>
+            <DialogDescription>Review reported concerns and uploaded images.</DialogDescription>
+          </DialogHeader>
+
+          {selectedConcern ? (
+            (() => {
+              const who =
+                String(selectedConcern.hlaManagerName || "").trim() ||
+                String(selectedConcern.userName || "").trim() ||
+                String(selectedConcern.username || "").trim() ||
+                "(unknown)"
+              const when = selectedConcern.uploadedAt
+                ? new Date(selectedConcern.uploadedAt).toLocaleString()
+                : selectedConcern.dateKey
+              const concerns = Array.isArray(selectedConcern.concerns) ? selectedConcern.concerns : []
+              const images = Array.isArray(selectedConcern.images) ? selectedConcern.images : []
+
+              return (
+                <div className="grid gap-4">
+                  <div className="rounded-2xl border bg-white/60 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="text-base font-semibold text-neutral-900 truncate">
+                          {selectedConcern.school || "Unknown School"}
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                          {who}
+                          {selectedConcern.municipality ? ` • ${selectedConcern.municipality}` : ""}
+                          {selectedConcern.categoryLabel ? ` • ${selectedConcern.categoryLabel}` : ""}
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground whitespace-nowrap">{when}</div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Badge variant="secondary" className="rounded-xl">
+                        {selectedConcern.status}
+                      </Badge>
+                      {selectedConcern.statusReason ? (
+                        <Badge variant="outline" className="rounded-xl">
+                          {selectedConcern.statusReason}
+                        </Badge>
+                      ) : null}
+                      <Badge
+                        variant="outline"
+                        className="rounded-xl border-amber-200 bg-amber-50 text-amber-700"
+                      >
+                        {concerns.length} concern{concerns.length === 1 ? "" : "s"}
+                      </Badge>
+                      <Badge variant="outline" className="rounded-xl">
+                        {images.length} image{images.length === 1 ? "" : "s"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-2xl border bg-white/60 p-4">
+                      <div className="text-sm font-semibold text-neutral-900">Concerns</div>
+                      {concerns.length === 0 ? (
+                        <div className="mt-2 text-sm text-muted-foreground">No concerns.</div>
+                      ) : (
+                        <div className="mt-3 space-y-2">
+                          {concerns.map((c, idx) => (
+                            <div
+                              key={`${selectedConcern.id}-detail-c-${idx}`}
+                              className="rounded-xl border bg-white/70 p-3 text-sm text-neutral-800 leading-relaxed"
+                            >
+                              {c}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {selectedConcern.remarks ? (
+                        <div className="mt-4">
+                          <div className="text-sm font-semibold text-neutral-900">Remarks</div>
+                          <div className="mt-2 rounded-xl border bg-white/70 p-3 text-sm text-neutral-800 leading-relaxed">
+                            {selectedConcern.remarks}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="rounded-2xl border bg-white/60 p-4">
+                      <div className="text-sm font-semibold text-neutral-900">Uploaded Images</div>
+                      {images.length === 0 ? (
+                        <div className="mt-2 text-sm text-muted-foreground">No images.</div>
+                      ) : (
+                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {images.map((img, idx) => (
+                            <button
+                              key={`${img.filename}-${idx}`}
+                              type="button"
+                              className="group overflow-hidden rounded-2xl border bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/30"
+                              onClick={() => setImagePreviewIndex(idx)}
+                            >
+                              <img
+                                src={`${getApiBaseUrl()}${img.url}`}
+                                alt={img.filename || `image-${idx + 1}`}
+                                className="h-28 w-full object-cover transition-transform group-hover:scale-[1.03]"
+                                loading="lazy"
+                              />
+                              <div className="px-3 py-2 text-xs text-muted-foreground truncate">{img.filename}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })()
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!selectedConcern && imagePreviewIndex !== null}
+        onOpenChange={(open) => {
+          if (!open) setImagePreviewIndex(null)
+        }}
+      >
+        <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-2rem)] max-w-6xl max-h-[90vh] overflow-hidden rounded-2xl p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Image Preview</DialogTitle>
+            <DialogDescription>Use Prev/Next to navigate.</DialogDescription>
+          </DialogHeader>
+
+          {(() => {
+            const images = Array.isArray(selectedConcern?.images) ? selectedConcern!.images! : []
+            const idx = imagePreviewIndex
+            if (!selectedConcern || idx === null || !images[idx]) {
+              return <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">No image.</div>
+            }
+
+            const img = images[idx]
+
+            return (
+              <div className="grid gap-4">
+                <div className="overflow-hidden rounded-2xl border bg-black/5">
+                  <img
+                    src={`${getApiBaseUrl()}${img.url}`}
+                    alt={img.filename || `image-${idx + 1}`}
+                    className="max-h-[65vh] w-full object-contain bg-white"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 text-sm text-muted-foreground truncate">{img.filename}</div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-xl"
+                      disabled={idx <= 0}
+                      onClick={() => setImagePreviewIndex((p) => (p === null ? p : Math.max(0, p - 1)))}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-xl"
+                      disabled={idx >= images.length - 1}
+                      onClick={() =>
+                        setImagePreviewIndex((p) => (p === null ? p : Math.min(images.length - 1, p + 1)))
+                      }
+                    >
+                      Next
+                    </Button>
+                    <Button
+                      type="button"
+                      className="rounded-xl"
+                      onClick={() => setImagePreviewIndex(null)}
+                    >
+                      Back
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4 lg:grid-cols-12">
         <motion.div
@@ -640,31 +976,59 @@ export function Dashboard() {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.18, delay: idx * 0.04 }}
-                    className="rounded-2xl border bg-muted/20 p-3"
+                    className="group min-w-0 overflow-hidden rounded-2xl border border-black/5 bg-gradient-to-br from-white/80 to-emerald-50/40 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] transition-all md:hover:-translate-y-0.5 md:hover:shadow-[0_10px_26px_rgba(0,0,0,0.06)]"
                   >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <div className="truncate font-medium">{a.title}</div>
-                          <Badge
-                            variant={
-                              a.variant === "success"
-                                ? "secondary"
-                                : a.variant === "warning"
-                                  ? "outline"
-                                  : "default"
-                            }
-                            className="rounded-xl"
-                          >
-                            {a.variant}
-                          </Badge>
+                    {(() => {
+                      const parts = String(a.subtitle || "").split(" • ")
+                      const isDelivery = a.id.startsWith("d-")
+                      const school = isDelivery ? (parts[0] || "") : ""
+                      const category = isDelivery ? (parts[1] || "") : ""
+                      const fallbackSubtitle = !isDelivery ? String(a.subtitle || "") : ""
+
+                      return (
+                        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <div className="min-w-0 flex-1 basis-full truncate font-medium sm:basis-auto">
+                                {a.title}
+                              </div>
+                              <span
+                                className={`inline-flex max-w-full shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium capitalize shadow-sm transition-colors group-hover:brightness-[0.98] ${
+                                  a.variant === "success"
+                                    ? "border-emerald-200/70 bg-gradient-to-r from-emerald-50 to-emerald-100/70 text-emerald-800"
+                                    : a.variant === "warning"
+                                      ? "border-amber-200/70 bg-gradient-to-r from-amber-50 to-amber-100/70 text-amber-800"
+                                      : "border-sky-200/70 bg-gradient-to-r from-sky-50 to-sky-100/70 text-sky-800"
+                                }`}
+                              >
+                                {a.variant}
+                              </span>
+                            </div>
+
+                            {isDelivery ? (
+                              <div className="mt-1 min-w-0 truncate text-sm text-muted-foreground">
+                                {school}
+                              </div>
+                            ) : (
+                              <div className="mt-1 min-w-0 truncate text-sm text-muted-foreground">
+                                {fallbackSubtitle}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="shrink-0 text-right">
+                            {isDelivery && category ? (
+                              <div className="inline-flex max-w-[60vw] items-center justify-end rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm truncate">
+                                {category}
+                              </div>
+                            ) : null}
+                            <div className="mt-1 text-xs text-muted-foreground break-words sm:whitespace-nowrap">
+                              {a.time}
+                            </div>
+                          </div>
                         </div>
-                        <div className="mt-1 truncate text-sm text-muted-foreground">
-                          {a.subtitle}
-                        </div>
-                      </div>
-                      <div className="text-xs text-muted-foreground whitespace-nowrap">{a.time}</div>
-                    </div>
+                      )
+                    })()}
                   </motion.div>
                 ))}
               </div>

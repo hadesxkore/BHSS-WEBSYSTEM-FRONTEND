@@ -748,6 +748,16 @@ export function UserSidebarLayout({
     return notifications.reduce((acc, n) => acc + (n.read ? 0 : 1), 0)
   }, [notifications])
 
+  const unreadAllCount = unreadCount
+
+  const unreadAnnouncementsCount = useMemo(() => {
+    return notifications.reduce((acc, n) => acc + (!n.read && n.kind === "announcement" ? 1 : 0), 0)
+  }, [notifications])
+
+  const unreadEventsCount = useMemo(() => {
+    return notifications.reduce((acc, n) => acc + (!n.read && n.kind === "event" ? 1 : 0), 0)
+  }, [notifications])
+
   const filteredNotifications = useMemo(() => {
     if (notifTab === "events") return notifications.filter((n) => n.kind === "event")
     if (notifTab === "announcements") return notifications.filter((n) => n.kind === "announcement")
@@ -883,42 +893,92 @@ export function UserSidebarLayout({
                 <div className="mt-3">
                   <Tabs value={notifTab} onValueChange={(v) => setNotifTab(v as any)}>
                     <TabsList className="grid w-full grid-cols-3 h-9">
-                      <TabsTrigger value="all" className="px-2 text-xs sm:text-sm">
+                      <TabsTrigger value="all" className="relative px-2 text-xs sm:text-sm">
                         All
+                        {unreadAllCount > 0 ? (
+                          <span className="absolute -right-1 -top-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center">
+                            {unreadAllCount > 99 ? "99+" : unreadAllCount}
+                          </span>
+                        ) : null}
                       </TabsTrigger>
-                      <TabsTrigger value="announcements" className="px-2 text-xs sm:text-sm">
+                      <TabsTrigger value="announcements" className="relative px-2 text-xs sm:text-sm">
                         Announce
+                        {unreadAnnouncementsCount > 0 ? (
+                          <span className="absolute -right-1 -top-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center">
+                            {unreadAnnouncementsCount > 99 ? "99+" : unreadAnnouncementsCount}
+                          </span>
+                        ) : null}
                       </TabsTrigger>
-                      <TabsTrigger value="events" className="px-2 text-xs sm:text-sm">
+                      <TabsTrigger value="events" className="relative px-2 text-xs sm:text-sm">
                         Events
+                        {unreadEventsCount > 0 ? (
+                          <span className="absolute -right-1 -top-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] leading-[18px] text-center">
+                            {unreadEventsCount > 99 ? "99+" : unreadEventsCount}
+                          </span>
+                        ) : null}
                       </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value={notifTab}>
                       <div className="mt-2 max-h-[min(50dvh,300px)] space-y-2 overflow-auto pr-1">
                         {filteredNotifications.length ? (
-                          filteredNotifications.map((n) => (
-                            <button
-                              key={n.id}
-                              type="button"
-                              onClick={() => {
-                                setNotifications((prev) =>
-                                  prev.map((x) => (x.id === n.id ? { ...x, read: true } : x))
-                                )
-                                setReadIds((prev) => {
-                                  const next = new Set(prev)
-                                  next.add(n.id)
-                                  return next
-                                })
-                              }}
-                              className={`group relative block w-full overflow-hidden text-left rounded-2xl border bg-white/70 p-3 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-[1px] hover:bg-white hover:shadow-md active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 ${
-                                n.status === "Cancelled"
-                                  ? "border-red-600/25"
-                                  : n.kind === "event"
-                                    ? "border-emerald-600/20"
-                                    : "border-sky-600/20"
-                              }`}
-                            >
+                          <AnimatePresence initial={false}>
+                            {filteredNotifications.map((n) => (
+                              <motion.button
+                                key={n.id}
+                                type="button"
+                                layout="position"
+                                initial={{ opacity: 0, x: 0, scale: 0.98 }}
+                                animate={{ opacity: 1, x: 0, scale: 1 }}
+                                exit={{ opacity: 0, x: 80, scale: 0.98 }}
+                                transition={{ type: "spring", stiffness: 260, damping: 26, mass: 0.9 }}
+                                onClick={() => {
+                                  try {
+                                    const rawId = String(n.id || "")
+                                    const sourceId = rawId.startsWith("announcement-")
+                                      ? rawId.replace(/^announcement-/, "")
+                                      : rawId.startsWith("event-")
+                                        ? rawId.replace(/^event-/, "")
+                                        : ""
+
+                                    const dateKey = (() => {
+                                      if (n.kind !== "event") return ""
+                                      const m = String(n.message || "").match(/\b\d{4}-\d{2}-\d{2}\b/)
+                                      return m ? String(m[0]) : ""
+                                    })()
+
+                                    localStorage.setItem(
+                                      "bhss_notif_intent",
+                                      JSON.stringify({
+                                        kind: n.kind,
+                                        sourceId,
+                                        dateKey,
+                                      })
+                                    )
+                                  } catch {
+                                    // ignore
+                                  }
+
+                                  setReadIds((prev) => {
+                                    const next = new Set(prev)
+                                    next.add(n.id)
+                                    return next
+                                  })
+
+                                  setNotifOpen(false)
+                                  if (n.kind === "announcement") setActiveItem("Announcements")
+                                  if (n.kind === "event") setActiveItem("Calendar")
+
+                                  setNotifications((prev) => prev.filter((x) => x.id !== n.id))
+                                }}
+                                className={`group relative block w-full overflow-hidden text-left rounded-2xl border bg-white/70 p-3 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-[1px] hover:bg-white hover:shadow-md active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 ${
+                                  n.status === "Cancelled"
+                                    ? "border-red-600/25"
+                                    : n.kind === "event"
+                                      ? "border-emerald-600/20"
+                                      : "border-sky-600/20"
+                                }`}
+                              >
                               <div
                                 className={`absolute inset-y-0 left-0 w-1 ${
                                   n.status === "Cancelled"
@@ -981,25 +1041,19 @@ export function UserSidebarLayout({
                                     </TooltipContent>
                                   </Tooltip>
                                 </div>
-                              <div
-                                className={`mt-1 text-[11px] sm:text-xs leading-snug text-muted-foreground ${
-                                  n.kind === "announcement" ? "line-clamp-2 whitespace-normal break-words" : "truncate"
-                                }`}
-                              >
-                                {n.message}
-                              </div>
-                              {n.status === "Cancelled" && n.cancelReason ? (
-                                <div className="mt-1 hidden sm:block text-xs truncate text-muted-foreground">
-                                  Reason: {n.cancelReason}
+                                <div
+                                  className={`mt-1 text-[11px] sm:text-xs leading-snug text-muted-foreground ${
+                                    n.kind === "announcement" ? "line-clamp-2 whitespace-normal break-words" : "truncate"
+                                  }`}
+                                >
+                                  {n.message || (n.kind === "event" ? "(open to view details)" : "")}
                                 </div>
-                              ) : null}
                               </div>
-                            </button>
-                          ))
+                              </motion.button>
+                            ))}
+                          </AnimatePresence>
                         ) : (
-                          <div className="rounded-2xl border border-dashed border-black/10 bg-white/40 p-6 text-center text-sm text-muted-foreground">
-                            No items
-                          </div>
+                          <div className="py-6 text-sm text-muted-foreground">No notifications.</div>
                         )}
                       </div>
                     </TabsContent>
