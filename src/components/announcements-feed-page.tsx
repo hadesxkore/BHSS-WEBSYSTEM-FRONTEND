@@ -699,10 +699,10 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                           key={it.id}
                           type="button"
                           onClick={() => openDetails(it)}
-                          className={`group w-full rounded-2xl border p-3 sm:p-4 text-left outline-none transition-all focus-visible:ring-2 focus-visible:ring-emerald-400/50 hover:-translate-y-[1px] hover:shadow-sm active:translate-y-0 ${
+                          className={`group w-full rounded-2xl border p-3 sm:p-4 text-left outline-none transition-all focus-visible:ring-2 focus-visible:ring-emerald-400/50 shadow-[0_1px_0_rgba(255,255,255,0.7),0_10px_30px_rgba(0,0,0,0.06)] hover:-translate-y-[1px] hover:shadow-[0_1px_0_rgba(255,255,255,0.7),0_16px_40px_rgba(0,0,0,0.10)] active:translate-y-0 ${
                             isCancelled
-                              ? "border-red-700/20 bg-red-50/70 hover:bg-red-50"
-                              : "border-black/5 bg-white/60 hover:bg-white/75"
+                              ? "border-red-700/20 bg-red-50/80 hover:bg-red-50"
+                              : "border-black/15 bg-slate-50/90 hover:bg-slate-50"
                           }`}
                         >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">

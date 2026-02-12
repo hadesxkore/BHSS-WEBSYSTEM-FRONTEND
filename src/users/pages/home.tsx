@@ -7,7 +7,7 @@ import {
   BadgeCheck,
   Calendar,
   ClipboardCheck,
-  PackageCheck,
+  Megaphone,
   TrendingUp,
   Truck,
 } from "lucide-react"
@@ -52,6 +52,11 @@ type DeliveryRecordDto = {
   status?: "Pending" | "Delivered" | "Delayed" | "Cancelled"
   uploadedAt?: string
   updatedAt?: string
+}
+
+type AnnouncementDto = {
+  _id?: string
+  id?: string
 }
 
 type DashboardKpi = {
@@ -144,6 +149,7 @@ export function UserHome() {
   const [isLoading, setIsLoading] = useState(true)
   const [attendance, setAttendance] = useState<AttendanceRecordDto[]>([])
   const [deliveries, setDeliveries] = useState<DeliveryRecordDto[]>([])
+  const [announcementsCount, setAnnouncementsCount] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -152,23 +158,29 @@ export function UserHome() {
       setIsLoading(true)
       try {
         const fromKey = safeKey(subDays(new Date(), 29))
-        const [attRes, delRes] = await Promise.all([
+        const [attRes, delRes, annRes] = await Promise.all([
           apiFetch(`/api/attendance/history?from=${encodeURIComponent(fromKey)}&sort=newest`),
           apiFetch(`/api/delivery/history?sort=newest`),
+          apiFetch(`/api/announcements`),
         ])
 
         if (cancelled) return
 
         const att = Array.isArray((attRes as any)?.records) ? ((attRes as any).records as any[]) : []
         const del = Array.isArray((delRes as any)?.records) ? ((delRes as any).records as any[]) : []
+        const ann = Array.isArray((annRes as any)?.announcements)
+          ? (((annRes as any).announcements as any[]) as AnnouncementDto[])
+          : []
 
         setAttendance(att)
         setDeliveries(del)
+        setAnnouncementsCount(ann.length)
       } catch (e: any) {
         if (!cancelled) {
           toast.error(e?.message || "Failed to load dashboard")
           setAttendance([])
           setDeliveries([])
+          setAnnouncementsCount(0)
         }
       } finally {
         if (!cancelled) setIsLoading(false)
@@ -202,24 +214,6 @@ export function UserHome() {
     return { present, absent }
   }, [attendance, dateKeys14])
 
-  const deliveryStatusCounts14 = useMemo(() => {
-    const startKey = dateKeys14[0]
-    const endKey = dateKeys14[dateKeys14.length - 1]
-    const counts = { Pending: 0, Delivered: 0, Delayed: 0, Cancelled: 0 }
-
-    for (const r of deliveries) {
-      const dateKey = String((r as any)?.dateKey || "").trim()
-      if (!dateKey) continue
-      if (startKey && dateKey < startKey) continue
-      if (endKey && dateKey > endKey) continue
-
-      const status = String((r as any)?.status || "Pending") as keyof typeof counts
-      if (status in counts) counts[status] += 1
-    }
-
-    return counts
-  }, [deliveries, dateKeys14])
-
   const totals = useMemo(() => {
     const startKey = dateKeys14[0]
     const endKey = dateKeys14[dateKeys14.length - 1]
@@ -242,14 +236,11 @@ export function UserHome() {
       return true
     })
 
-    const delivered14 = delivery14.filter((r) => String((r as any)?.status || "") === "Delivered").length
-
     return {
       present14,
       absent14,
       records14: att14.length,
       deliveries14: delivery14.length,
-      delivered14,
     }
   }, [attendance, deliveries, dateKeys14])
 
@@ -277,14 +268,14 @@ export function UserHome() {
         accent: "from-indigo-500/15 via-indigo-500/5 to-transparent",
       },
       {
-        title: "Delivered (14d)",
-        value: String(totals.delivered14),
+        title: "Announcements",
+        value: String(announcementsCount),
         delta: "",
-        icon: PackageCheck,
-        accent: "from-fuchsia-500/15 via-fuchsia-500/5 to-transparent",
+        icon: Megaphone,
+        accent: "from-sky-500/15 via-sky-500/5 to-transparent",
       },
     ]
-  }, [totals])
+  }, [totals, announcementsCount])
 
   const recentActivity = useMemo<ActivityItem[]>(() => {
     const items: ActivityItem[] = []
@@ -329,7 +320,10 @@ export function UserHome() {
       options: {
         chart: { type: "area", toolbar: { show: false }, fontFamily: "inherit" },
         stroke: { curve: "smooth", width: 2 },
-        fill: { type: "gradient", gradient: { shadeIntensity: 0.25, opacityFrom: 0.4, opacityTo: 0.05 } },
+        fill: {
+          type: "gradient",
+          gradient: { shadeIntensity: 0.25, opacityFrom: 0.4, opacityTo: 0.05 },
+        },
         dataLabels: { enabled: false },
         xaxis: {
           categories: dateKeys14.map((k) => format(safeParseDateKey(k), "MMM d")),
@@ -339,17 +333,8 @@ export function UserHome() {
         },
         yaxis: { labels: { style: { colors: "#64748b" } } },
         grid: { borderColor: "#e2e8f0", strokeDashArray: 4 },
-        colors: ["#10b981", "#f43f5e"],
-        legend: { position: "top", horizontalAlign: "left", labels: { colors: "#475569" } },
-        tooltip: { theme: "light" },
+        legend: { labels: { colors: "#475569" } },
         responsive: [
-          {
-            breakpoint: 640,
-            options: {
-              legend: { position: "bottom", horizontalAlign: "left" },
-              xaxis: { labels: { rotate: -35, rotateAlways: true } },
-            },
-          },
           {
             breakpoint: 420,
             options: {
@@ -365,46 +350,6 @@ export function UserHome() {
       ],
     }
   }, [attendanceSeries, dateKeys14])
-
-  const deliveryStatusChart = useMemo(() => {
-    const labels = ["Delivered", "Pending", "Delayed", "Cancelled"]
-    const values = [
-      deliveryStatusCounts14.Delivered,
-      deliveryStatusCounts14.Pending,
-      deliveryStatusCounts14.Delayed,
-      deliveryStatusCounts14.Cancelled,
-    ]
-
-    return {
-      options: {
-        chart: { type: "donut", toolbar: { show: false }, fontFamily: "inherit" },
-        labels,
-        legend: { position: "bottom", labels: { colors: "#475569" } },
-        dataLabels: { enabled: false },
-        stroke: { width: 1, colors: ["#ffffff"] },
-        colors: ["#10b981", "#6366f1", "#f59e0b", "#f43f5e"],
-        tooltip: { theme: "light" },
-        plotOptions: { pie: { donut: { size: "72%" } } },
-        responsive: [
-          {
-            breakpoint: 640,
-            options: {
-              plotOptions: { pie: { donut: { size: "68%" } } },
-              legend: { position: "bottom" },
-            },
-          },
-          {
-            breakpoint: 420,
-            options: {
-              plotOptions: { pie: { donut: { size: "64%" } } },
-              legend: { position: "bottom" },
-            },
-          },
-        ],
-      } as any,
-      series: values,
-    }
-  }, [deliveryStatusCounts14])
 
   return (
     <motion.div
@@ -505,33 +450,6 @@ export function UserHome() {
           </Card>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, delay: 0.1 }}
-          className="lg:col-span-4"
-        >
-          <Card className="rounded-2xl border border-black/5 bg-white/70 [@supports(backdrop-filter:blur(0))]:backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_10px_30px_rgba(0,0,0,0.06)]">
-            <CardHeader className="flex flex-col gap-1">
-              <CardTitle className="flex items-center gap-2">
-                <Truck className="size-5" />
-                Delivery Status
-              </CardTitle>
-              <div className="text-sm text-muted-foreground">Breakdown (last 14 days)</div>
-            </CardHeader>
-            <CardContent className="h-[240px] sm:h-[320px] p-3 sm:p-6">
-              <div className="h-full w-full overflow-hidden [&_.apexcharts-canvas]:!w-full [&_.apexcharts-svg]:!w-full [&_.apexcharts-canvas]:!h-full [&_.apexcharts-svg]:!h-full">
-                <ReactApexChart
-                  type="donut"
-                  height="100%"
-                  width="100%"
-                  options={deliveryStatusChart.options}
-                  series={deliveryStatusChart.series as any}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
       </div>
 
       <Card className="rounded-2xl border border-black/5 bg-white/70 [@supports(backdrop-filter:blur(0))]:backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_10px_30px_rgba(0,0,0,0.06)]">
