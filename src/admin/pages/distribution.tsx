@@ -18,6 +18,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Package } from "lucide-react"
 import * as XLSX from "xlsx"
 import { toast } from "sonner"
@@ -277,7 +285,7 @@ function LpgDistributionPage() {
 
             <Button
               type="button"
-              className="rounded-xl"
+              className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
               disabled={rows.length === 0 || isSaving}
               onClick={async () => {
                 setIsSaving(true)
@@ -380,27 +388,33 @@ function LpgDistributionPage() {
             </div>
           ) : (
             <div className="rounded-2xl border bg-white/70 overflow-hidden">
-              <div className="max-h-[70vh] overflow-auto">
-                <table className="min-w-[720px] w-full border-collapse text-sm">
-                <thead>
-                  <tr>
-                    <th colSpan={2} className="border border-black bg-black px-2 py-2 text-left font-bold text-white">
-                      <div>LPG DISTRIBUTION (11kg. tank)</div>
-                    </th>
-                    <th className="border border-black bg-black px-2 py-2 text-center font-bold text-white">
-                      Gasul ({gasulHeaderTotal ?? totals.gasul})
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="border border-black p-6 text-center text-muted-foreground">
-                        Import an Excel file to populate the table.
-                      </td>
-                    </tr>
-                  ) : (
-                    grouped.flatMap(([muni, muniRows]) => {
+              <div className="max-h-[70vh] overflow-auto touch-pan-x overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+                <Table className="min-w-[980px] w-full border-collapse text-sm">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead
+                        colSpan={2}
+                        className="border border-emerald-900/40 bg-emerald-700 px-2 py-2 text-left font-bold text-white"
+                      >
+                        <div>LPG DISTRIBUTION (11kg. tank)</div>
+                      </TableHead>
+                      <TableHead className="border border-emerald-900/40 bg-emerald-700 px-2 py-2 text-center font-bold text-white">
+                        Gasul ({gasulHeaderTotal ?? totals.gasul})
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={3}
+                          className="border border-emerald-900/20 p-6 text-center text-muted-foreground"
+                        >
+                          Import an Excel file to populate the table.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      grouped.flatMap(([muni, muniRows]) => {
                       const muniTotals = muniRows.reduce(
                         (acc, r) => {
                           acc.gasul += r.gasul
@@ -410,61 +424,66 @@ function LpgDistributionPage() {
                       )
 
                       const lguRow = (
-                        <tr key={`lgu-${muni}`}>
-                          <td className="border border-black px-2 py-1 text-center font-semibold">LGU</td>
-                          <td className="border border-black px-2 py-1">BHSS Kitchen</td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums"></td>
-                        </tr>
+                        <TableRow key={`lgu-${muni}`}>
+                          <TableCell className="border border-emerald-900/20 px-2 py-1 text-center font-semibold">
+                            LGU
+                          </TableCell>
+                          <TableCell className="border border-emerald-900/20 px-2 py-1">BHSS Kitchen</TableCell>
+                          <TableCell className="border border-emerald-900/20 px-2 py-1 text-right tabular-nums"></TableCell>
+                        </TableRow>
                       )
 
                       const schoolRows = muniRows.map((r, idx) => (
-                        <tr key={r.id}>
+                        <TableRow key={r.id}>
                           {idx === 0 ? (
-                            <td
+                            <TableCell
                               rowSpan={muniRows.length}
-                              className="border border-black px-2 py-1 align-middle text-center font-semibold"
+                              className="border border-emerald-900/20 px-2 py-1 align-middle text-center font-semibold"
                             >
                               {muni}
-                            </td>
+                            </TableCell>
                           ) : null}
-                          <td className="border border-black px-2 py-1">
+                          <TableCell className="border border-emerald-900/20 px-2 py-1">
                             <div className="max-w-[380px] truncate">{r.school}</div>
-                          </td>
-                          <td
-                            className="border border-black px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-black/5"
+                          </TableCell>
+                          <TableCell
+                            className="border border-emerald-900/20 px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-emerald-50"
                             onClick={() => setEditing({ rowId: r.id, value: String(r.gasul ?? "") })}
                           >
                             {r.gasul || ""}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))
 
                       const subtotalRow = (
-                        <tr key={`sub-${muni}`}>
-                          <td className="border border-black px-2 py-1"></td>
-                          <td className="border border-black px-2 py-1"></td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums font-semibold">
+                        <TableRow key={`sub-${muni}`}>
+                          <TableCell className="border border-emerald-900/20 px-2 py-1"></TableCell>
+                          <TableCell className="border border-emerald-900/20 px-2 py-1"></TableCell>
+                          <TableCell className="border border-emerald-900/20 px-2 py-1 text-right tabular-nums font-semibold">
                             {muniTotals.gasul || ""}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )
 
                       return [lguRow, ...schoolRows, subtotalRow]
                     })
-                  )}
+                    )}
 
-                  {rows.length > 0 ? (
-                    <tr>
-                      <td colSpan={2} className="border border-black bg-muted/20 px-2 py-2 font-bold">
-                        Grand Total
-                      </td>
-                      <td className="border border-black bg-muted/20 px-2 py-2 text-right tabular-nums font-bold">
-                        {totals.gasul}
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
+                    {rows.length > 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={2}
+                          className="border border-emerald-900/20 bg-emerald-50 px-2 py-2 font-bold text-emerald-950"
+                        >
+                          Grand Total
+                        </TableCell>
+                        <TableCell className="border border-emerald-900/20 bg-emerald-50 px-2 py-2 text-right tabular-nums font-bold text-emerald-950">
+                          {totals.gasul}
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </TableBody>
+                </Table>
               </div>
             </div>
           )}

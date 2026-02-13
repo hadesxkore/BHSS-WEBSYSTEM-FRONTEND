@@ -24,7 +24,8 @@ async function apiFetch(path: string, init?: RequestInit) {
   const token = getAuthToken()
   if (!token) throw new Error("Not authenticated")
 
-  const res = await fetch(`${getApiBaseUrl()}${path}`, {
+  const url = `${getApiBaseUrl()}${path}`
+  const res = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -34,7 +35,7 @@ async function apiFetch(path: string, init?: RequestInit) {
   })
 
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error((data as any)?.message || "Request failed")
+  if (!res.ok) throw new Error((data as any)?.message || `Request failed (${res.status}) ${url}`)
   return data
 }
 
@@ -72,7 +73,7 @@ export function EnablePushNotifications() {
 
   const label = useMemo(() => {
     if (!isSupported) return "Push not supported"
-    if (permission === "granted") return "Push enabled"
+    if (permission === "granted") return "Sync push"
     if (permission === "denied") return "Push blocked"
     return "Enable notifications"
   }, [isSupported, permission])
@@ -83,37 +84,173 @@ export function EnablePushNotifications() {
       return
     }
 
+    try {
+      console.log("[push] enable: start", {
+        permission: typeof Notification === "undefined" ? "n/a" : Notification.permission,
+        apiBaseUrl: getApiBaseUrl(),
+        isSecureContext: typeof window === "undefined" ? "n/a" : window.isSecureContext,
+        userAgent: typeof navigator === "undefined" ? "n/a" : navigator.userAgent,
+      })
+    } catch {
+      // ignore
+    }
+
     setIsBusy(true)
     try {
       const perm = await Notification.requestPermission()
       setPermission(perm)
       if (perm !== "granted") {
+        try {
+          console.warn("[push] permission not granted", perm)
+        } catch {
+          // ignore
+        }
         toast.error("Notification permission not granted")
         return
       }
 
+      try {
+        console.log("[push] permission granted")
+      } catch {
+        // ignore
+      }
+
       const { publicKey } = await apiFetch("/api/push/vapid-public-key")
-      if (!publicKey) {
+      try {
+        console.log("[push] vapid public key fetched", {
+          present: Boolean(publicKey),
+          length: String(publicKey || "").length,
+        })
+      } catch {
+        // ignore
+      }
+
+      const publicKeyTrimmed = String(publicKey || "").trim()
+      if (!publicKeyTrimmed) {
         toast.error("Missing VAPID public key on server")
         return
       }
 
-      const reg = await navigator.serviceWorker.register("/bhss-push-sw.js")
+      if (!/^[A-Za-z0-9\-_]+$/.test(publicKeyTrimmed)) {
+        toast.error("Invalid VAPID public key format")
+        return
+      }
 
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(String(publicKey)),
-      })
+      try {
+        console.log("[push] registering service worker")
+      } catch {
+        // ignore
+      }
+
+      const reg =
+        (await navigator.serviceWorker.getRegistration("/")) ||
+        (await navigator.serviceWorker.register("/bhss-push-sw.js", { scope: "/" }))
+
+      try {
+        console.log("[push] service worker registration", {
+          scope: reg.scope,
+          installing: Boolean(reg.installing),
+          waiting: Boolean(reg.waiting),
+          active: Boolean(reg.active),
+        })
+      } catch {
+        // ignore
+      }
+
+      let activeReg = reg
+      try {
+        activeReg = await navigator.serviceWorker.ready
+        try {
+          console.log("[push] service worker ready")
+        } catch {
+          // ignore
+        }
+      } catch {
+        try {
+          console.warn("[push] service worker ready() failed; continuing")
+        } catch {
+          // ignore
+        }
+      }
+
+      try {
+        console.log("[push] checking existing subscription")
+      } catch {
+        // ignore
+      }
+
+      let sub = await activeReg.pushManager.getSubscription()
+      if (!sub) {
+        try {
+          console.log("[push] no existing subscription; subscribing")
+        } catch {
+          // ignore
+        }
+
+        sub = await activeReg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKeyTrimmed),
+        })
+      } else {
+        try {
+          console.log("[push] existing subscription found")
+        } catch {
+          // ignore
+        }
+      }
+
+      try {
+        console.log("[push] subscription", {
+          endpoint: sub?.endpoint,
+          hasKeys: Boolean((sub as any)?.toJSON?.()?.keys || (sub as any)?.keys),
+        })
+      } catch {
+        // ignore
+      }
 
       await apiFetch("/api/push/subscribe", {
         method: "POST",
         body: JSON.stringify(sub),
       })
 
+      try {
+        console.log("[push] subscribe saved")
+      } catch {
+        // ignore
+      }
+
       toast.success("Push notifications enabled")
     } catch (e: any) {
-      toast.error(e?.message || "Failed to enable push")
+      const rawMsg = e?.message || "Failed to enable push"
+      const errName = String(e?.name || "")
+
+      try {
+        const permState = await (navigator as any)?.permissions?.query?.({ name: "notifications" })
+        console.log("[push] permissions.query(notifications)", { state: permState?.state })
+      } catch {
+        // ignore
+      }
+
+      const msg =
+        rawMsg === "Registration failed - push service error" ||
+        String(rawMsg).includes("push service error") ||
+        errName === "AbortError"
+          ? "Push subscribe failed (push service error). On Edge localhost this is commonly caused by adblock/VPN, strict tracking prevention, or network/firewall blocking the push service. Try disable extensions/VPN, clear site data, then Sync push again."
+          : rawMsg
+
+      toast.error(msg)
+      
+      try {
+        console.error("[push] enable failed", e)
+      } catch {
+        // ignore
+      }
     } finally {
+      try {
+        console.log("[push] enable: done")
+      } catch {
+        // ignore
+      }
       setIsBusy(false)
     }
   }, [isSupported])
@@ -124,7 +261,7 @@ export function EnablePushNotifications() {
       variant="outline"
       className="rounded-xl"
       onClick={enable}
-      disabled={!isSupported || isBusy || permission === "granted"}
+      disabled={!isSupported || isBusy}
       title={!isSupported ? "Not supported" : permission === "denied" ? "Blocked in browser settings" : undefined}
     >
       {isBusy ? "Working..." : label}

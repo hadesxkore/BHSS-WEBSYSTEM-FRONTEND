@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
-import { format, isAfter, isBefore, parseISO, startOfDay } from "date-fns"
+import { addDays, format, isAfter, isBefore, parseISO, startOfDay } from "date-fns"
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
@@ -538,6 +538,12 @@ export function UserAttendance() {
       }
 
       setActiveTab("record")
+
+      try {
+        setDate(addDays(date, 1))
+      } catch {
+        // ignore
+      }
     } catch (e: any) {
       toast.error(e?.message || "Failed to save")
     } finally {
