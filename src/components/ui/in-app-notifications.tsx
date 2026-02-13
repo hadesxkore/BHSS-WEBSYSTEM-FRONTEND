@@ -76,7 +76,7 @@ export function InAppNotificationsViewport() {
   const remove = useInAppNotificationsStore((s) => s.remove)
 
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[200] flex w-[min(420px,calc(100vw-2rem))] flex-col gap-3">
+    <div className="pointer-events-none fixed top-4 right-4 z-[200] flex w-[min(420px,calc(100vw-2rem))] flex-col gap-3">
       <AnimatePresence initial={false} mode="popLayout">
         {items.map((n) => {
           const accent =
@@ -86,7 +86,7 @@ export function InAppNotificationsViewport() {
                 ? "bg-rose-500"
                 : n.variant === "warning"
                   ? "bg-amber-500"
-                  : "bg-slate-500"
+                  : "bg-emerald-500"
 
           const Icon =
             n.variant === "success"
@@ -104,11 +104,11 @@ export function InAppNotificationsViewport() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -12, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 520, damping: 34 }}
-              className="pointer-events-auto relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+              className="pointer-events-auto relative overflow-hidden rounded-xl border border-emerald-900/15 bg-white shadow-lg"
             >
               <div className={`absolute inset-y-0 left-0 w-1 ${accent}`} />
               <div className="flex gap-3 p-4">
-                <div className="grid size-10 place-items-center rounded-lg border border-slate-200 bg-white text-slate-700">
+                <div className="grid size-10 place-items-center rounded-lg border border-emerald-900/15 bg-emerald-50/50 text-emerald-900">
                   <Icon className="size-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -122,7 +122,7 @@ export function InAppNotificationsViewport() {
                     <button
                       type="button"
                       onClick={() => remove(n.id)}
-                      className="-mr-1 -mt-1 inline-flex size-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                      className="-mr-1 -mt-1 inline-flex size-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-emerald-50 hover:text-slate-900"
                       aria-label="Dismiss notification"
                     >
                       <X className="size-4" />

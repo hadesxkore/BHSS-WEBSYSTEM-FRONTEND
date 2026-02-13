@@ -464,7 +464,7 @@ function LpgDistributionPage() {
                     </tr>
                   ) : null}
                 </tbody>
-                </table>
+              </table>
               </div>
             </div>
           )}
@@ -492,6 +492,7 @@ function LpgDistributionPage() {
                 </Button>
                 <Button
                   type="button"
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
                   disabled={!editing || isUpdatingCell}
                   onClick={async () => {
                     if (!editing) return
@@ -901,7 +902,7 @@ function WaterDistributionPage() {
 
             <Button
               type="button"
-              className="rounded-xl"
+              className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
               disabled={rows.length === 0 || isSaving}
               onClick={async () => {
                 setIsSaving(true)
@@ -1012,32 +1013,32 @@ function WaterDistributionPage() {
             </div>
           ) : (
             <div className="rounded-2xl border bg-white/70 overflow-hidden">
-              <div className="max-h-[70vh] overflow-auto">
+              <div className="relative w-full max-w-full overflow-x-scroll overflow-y-hidden touch-pan-x overscroll-x-contain pb-3 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]">
                 <table className="min-w-[980px] w-full border-collapse text-sm">
-                <thead>
-                  <tr>
-                    <th
-                      colSpan={3}
-                      className="border border-black bg-black px-2 py-2 text-left font-bold text-white"
-                    >
-                      <div>WATER DISTRIBUTION</div>
-                      <div className="text-xs font-semibold opacity-90">(5gallons)</div>
-                    </th>
-                    <th className="border border-black bg-black px-2 py-2 text-center font-bold text-white">
-                      Water ({waterHeaderTotal ?? totals.water})
-                    </th>
-                    <th className="border border-black bg-black px-2 py-2 text-center font-bold text-white">Week 1</th>
-                    <th className="border border-black bg-black px-2 py-2 text-center font-bold text-white">Week 2</th>
-                    <th className="border border-black bg-black px-2 py-2 text-center font-bold text-white">Week 3</th>
-                    <th className="border border-black bg-black px-2 py-2 text-center font-bold text-white">Week 4</th>
-                    <th className="border border-black bg-black px-2 py-2 text-center font-bold text-white">Week 5</th>
-                    <th className="border border-black bg-black px-2 py-2 text-center font-bold text-white">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
+                      <thead>
+                        <tr>
+                          <th
+                            colSpan={3}
+                            className="border border-emerald-900/40 bg-emerald-700 px-2 py-2 text-left font-bold text-white"
+                          >
+                            <div>WATER DISTRIBUTION</div>
+                            <div className="text-xs font-semibold opacity-90">(5gallons)</div>
+                          </th>
+                          <th className="border border-emerald-900/40 bg-emerald-700 px-2 py-2 text-center font-bold text-white">
+                            Water ({waterHeaderTotal ?? totals.water})
+                          </th>
+                          <th className="border border-emerald-900/40 bg-emerald-700 px-2 py-2 text-center font-bold text-white">Week 1</th>
+                          <th className="border border-emerald-900/40 bg-emerald-700 px-2 py-2 text-center font-bold text-white">Week 2</th>
+                          <th className="border border-emerald-900/40 bg-emerald-700 px-2 py-2 text-center font-bold text-white">Week 3</th>
+                          <th className="border border-emerald-900/40 bg-emerald-700 px-2 py-2 text-center font-bold text-white">Week 4</th>
+                          <th className="border border-emerald-900/40 bg-emerald-700 px-2 py-2 text-center font-bold text-white">Week 5</th>
+                          <th className="border border-emerald-900/40 bg-emerald-700 px-2 py-2 text-center font-bold text-white">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="border border-black p-6 text-center text-muted-foreground">
+                      <td colSpan={10} className="border border-emerald-900/30 p-6 text-center text-muted-foreground">
                         Import an Excel file to populate the table.
                       </td>
                     </tr>
@@ -1054,16 +1055,16 @@ function WaterDistributionPage() {
 
                       const lguRow = (
                         <tr key={`lgu-${muni}`}>
-                          <td className="border border-black px-2 py-1 text-center font-semibold">LGU</td>
-                          <td className="border border-black px-2 py-1">BHSS Kitchen</td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums"></td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums"></td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums"></td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums"></td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums"></td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums"></td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums"></td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/70 px-2 py-1 text-center font-semibold">LGU</td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/70 px-2 py-1">BHSS Kitchen</td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/70 px-2 py-1 text-right tabular-nums"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/70 px-2 py-1 text-right tabular-nums"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/70 px-2 py-1 text-right tabular-nums"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/70 px-2 py-1 text-right tabular-nums"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/70 px-2 py-1 text-right tabular-nums"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/70 px-2 py-1 text-right tabular-nums"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/70 px-2 py-1 text-right tabular-nums"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/70 px-2 py-1 text-right tabular-nums"></td>
                         </tr>
                       )
 
@@ -1072,16 +1073,16 @@ function WaterDistributionPage() {
                           {idx === 0 ? (
                             <td
                               rowSpan={muniRows.length}
-                              className="border border-black px-2 py-1 align-middle text-center font-semibold"
+                              className="border border-emerald-900/30 px-2 py-1 align-middle text-center font-semibold"
                             >
                               {muni}
                             </td>
                           ) : null}
-                          <td className="border border-black px-2 py-1">
+                          <td className="border border-emerald-900/30 px-2 py-1">
                             <div className="max-w-[260px] truncate">{r.school}</div>
                           </td>
                           <td
-                            className="border border-black px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-black/5"
+                            className="border border-emerald-900/30 px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-emerald-50"
                             onClick={() =>
                               setEditing({
                                 rowId: r.id,
@@ -1094,7 +1095,7 @@ function WaterDistributionPage() {
                             {r.beneficiaries || ""}
                           </td>
                           <td
-                            className="border border-black px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-black/5"
+                            className="border border-emerald-900/30 px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-emerald-50"
                             onClick={() =>
                               setEditing({
                                 rowId: r.id,
@@ -1107,7 +1108,7 @@ function WaterDistributionPage() {
                             {r.water || ""}
                           </td>
                           <td
-                            className="border border-black px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-black/5"
+                            className="border border-emerald-900/30 px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-emerald-50"
                             onClick={() =>
                               setEditing({
                                 rowId: r.id,
@@ -1120,7 +1121,7 @@ function WaterDistributionPage() {
                             {r.week1 || ""}
                           </td>
                           <td
-                            className="border border-black px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-black/5"
+                            className="border border-emerald-900/30 px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-emerald-50"
                             onClick={() =>
                               setEditing({
                                 rowId: r.id,
@@ -1133,7 +1134,7 @@ function WaterDistributionPage() {
                             {r.week2 || ""}
                           </td>
                           <td
-                            className="border border-black px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-black/5"
+                            className="border border-emerald-900/30 px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-emerald-50"
                             onClick={() =>
                               setEditing({
                                 rowId: r.id,
@@ -1146,7 +1147,7 @@ function WaterDistributionPage() {
                             {r.week3 || ""}
                           </td>
                           <td
-                            className="border border-black px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-black/5"
+                            className="border border-emerald-900/30 px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-emerald-50"
                             onClick={() =>
                               setEditing({
                                 rowId: r.id,
@@ -1159,7 +1160,7 @@ function WaterDistributionPage() {
                             {r.week4 || ""}
                           </td>
                           <td
-                            className="border border-black px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-black/5"
+                            className="border border-emerald-900/30 px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-emerald-50"
                             onClick={() =>
                               setEditing({
                                 rowId: r.id,
@@ -1172,7 +1173,7 @@ function WaterDistributionPage() {
                             {r.week5 || ""}
                           </td>
                           <td
-                            className="border border-black px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-black/5"
+                            className="border border-emerald-900/30 px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-emerald-50"
                             onClick={() =>
                               setEditing({
                                 rowId: r.id,
@@ -1189,18 +1190,18 @@ function WaterDistributionPage() {
 
                       const subtotalRow = (
                         <tr key={`sub-${muni}`}>
-                          <td className="border border-black px-2 py-1"></td>
-                          <td className="border border-black px-2 py-1"></td>
-                          <td className="border border-black px-2 py-1"></td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums font-semibold">
+                          <td className="border border-emerald-900/30 bg-emerald-50/40 px-2 py-1"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/40 px-2 py-1"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/40 px-2 py-1"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/40 px-2 py-1 text-right tabular-nums font-semibold">
                             {muniTotals.water || ""}
                           </td>
-                          <td className="border border-black px-2 py-1"></td>
-                          <td className="border border-black px-2 py-1"></td>
-                          <td className="border border-black px-2 py-1"></td>
-                          <td className="border border-black px-2 py-1"></td>
-                          <td className="border border-black px-2 py-1"></td>
-                          <td className="border border-black px-2 py-1 text-right tabular-nums font-semibold">
+                          <td className="border border-emerald-900/30 bg-emerald-50/40 px-2 py-1"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/40 px-2 py-1"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/40 px-2 py-1"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/40 px-2 py-1"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/40 px-2 py-1"></td>
+                          <td className="border border-emerald-900/30 bg-emerald-50/40 px-2 py-1 text-right tabular-nums font-semibold">
                             {muniTotals.total || ""}
                           </td>
                         </tr>
@@ -1212,25 +1213,25 @@ function WaterDistributionPage() {
 
                   {rows.length > 0 ? (
                     <tr>
-                      <td colSpan={2} className="border border-black bg-muted/20 px-2 py-2 font-bold">
+                      <td colSpan={2} className="border border-emerald-900/30 bg-emerald-50/60 px-2 py-2 font-bold">
                         Grand Total
                       </td>
-                      <td className="border border-black bg-muted/20 px-2 py-2"></td>
-                      <td className="border border-black bg-muted/20 px-2 py-2 text-right tabular-nums font-bold">
+                      <td className="border border-emerald-900/30 bg-emerald-50/60 px-2 py-2"></td>
+                      <td className="border border-emerald-900/30 bg-emerald-50/60 px-2 py-2 text-right tabular-nums font-bold">
                         {totals.water}
                       </td>
-                      <td className="border border-black bg-muted/20 px-2 py-2"></td>
-                      <td className="border border-black bg-muted/20 px-2 py-2"></td>
-                      <td className="border border-black bg-muted/20 px-2 py-2"></td>
-                      <td className="border border-black bg-muted/20 px-2 py-2"></td>
-                      <td className="border border-black bg-muted/20 px-2 py-2"></td>
-                      <td className="border border-black bg-muted/20 px-2 py-2 text-right tabular-nums font-bold">
+                      <td className="border border-emerald-900/30 bg-emerald-50/60 px-2 py-2"></td>
+                      <td className="border border-emerald-900/30 bg-emerald-50/60 px-2 py-2"></td>
+                      <td className="border border-emerald-900/30 bg-emerald-50/60 px-2 py-2"></td>
+                      <td className="border border-emerald-900/30 bg-emerald-50/60 px-2 py-2"></td>
+                      <td className="border border-emerald-900/30 bg-emerald-50/60 px-2 py-2"></td>
+                      <td className="border border-emerald-900/30 bg-emerald-50/60 px-2 py-2 text-right tabular-nums font-bold">
                         {totals.total}
                       </td>
                     </tr>
                   ) : null}
-                </tbody>
-                </table>
+                      </tbody>
+                    </table>
               </div>
             </div>
           )}
