@@ -4,8 +4,8 @@ import ReactApexChart from "react-apexcharts"
 import { addDays, format, parseISO, subDays } from "date-fns"
 import {
   Activity,
-  BadgeCheck,
   Calendar,
+  CalendarClock,
   ClipboardCheck,
   Megaphone,
   TrendingUp,
@@ -150,6 +150,7 @@ export function UserHome() {
   const [attendance, setAttendance] = useState<AttendanceRecordDto[]>([])
   const [deliveries, setDeliveries] = useState<DeliveryRecordDto[]>([])
   const [announcementsCount, setAnnouncementsCount] = useState(0)
+  const [eventsCount, setEventsCount] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -158,10 +159,11 @@ export function UserHome() {
       setIsLoading(true)
       try {
         const fromKey = safeKey(subDays(new Date(), 29))
-        const [attRes, delRes, annRes] = await Promise.all([
+        const [attRes, delRes, annRes, eventsRes] = await Promise.all([
           apiFetch(`/api/attendance/history?from=${encodeURIComponent(fromKey)}&sort=newest`),
           apiFetch(`/api/delivery/history?sort=newest`),
           apiFetch(`/api/announcements`),
+          apiFetch(`/api/events`),
         ])
 
         if (cancelled) return
@@ -171,16 +173,21 @@ export function UserHome() {
         const ann = Array.isArray((annRes as any)?.announcements)
           ? (((annRes as any).announcements as any[]) as AnnouncementDto[])
           : []
+        const events = Array.isArray((eventsRes as any)?.events)
+          ? ((eventsRes as any).events as any[])
+          : []
 
         setAttendance(att)
         setDeliveries(del)
         setAnnouncementsCount(ann.length)
+        setEventsCount(events.length)
       } catch (e: any) {
         if (!cancelled) {
           toast.error(e?.message || "Failed to load dashboard")
           setAttendance([])
           setDeliveries([])
           setAnnouncementsCount(0)
+          setEventsCount(0)
         }
       } finally {
         if (!cancelled) setIsLoading(false)
@@ -254,13 +261,6 @@ export function UserHome() {
         accent: "from-sky-500/15 via-sky-500/5 to-transparent",
       },
       {
-        title: "Present (14d)",
-        value: String(totals.present14),
-        delta: "",
-        icon: BadgeCheck,
-        accent: "from-emerald-500/15 via-emerald-500/5 to-transparent",
-      },
-      {
         title: "Deliveries (14d)",
         value: String(totals.deliveries14),
         delta: "",
@@ -274,8 +274,15 @@ export function UserHome() {
         icon: Megaphone,
         accent: "from-sky-500/15 via-sky-500/5 to-transparent",
       },
+      {
+        title: "Events",
+        value: String(eventsCount),
+        delta: "",
+        icon: CalendarClock,
+        accent: "from-emerald-500/15 via-emerald-500/5 to-transparent",
+      },
     ]
-  }, [totals, announcementsCount])
+  }, [totals, announcementsCount, eventsCount])
 
   const recentActivity = useMemo<ActivityItem[]>(() => {
     const items: ActivityItem[] = []
