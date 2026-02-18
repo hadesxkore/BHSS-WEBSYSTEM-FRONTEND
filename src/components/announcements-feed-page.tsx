@@ -635,8 +635,8 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
         </div>
       </div>
 
-      <Card className="rounded-2xl border border-black/5 bg-white/70 [@supports(backdrop-filter:blur(0))]:backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_10px_30px_rgba(0,0,0,0.06)]">
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
           <CardTitle className="text-base">Notifications Feed</CardTitle>
           <div className="flex items-center gap-2">
             {mode === "admin" ? (
@@ -665,24 +665,29 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="pt-5">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-            <TabsList className="w-full">
-              <TabsTrigger value="all" className="flex-1">
+            <TabsList className="w-full bg-slate-100/80 p-1">
+              <TabsTrigger value="all" className="flex-1 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 All
               </TabsTrigger>
-              <TabsTrigger value="announcements" className="flex-1">
+              <TabsTrigger value="announcements" className="flex-1 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 Announcements
               </TabsTrigger>
-              <TabsTrigger value="events" className="flex-1">
+              <TabsTrigger value="events" className="flex-1 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 Events
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="mt-4">
-              <ScrollArea className="h-[calc(100dvh-290px)] min-h-[360px] max-h-[560px] pr-2">
+              <ScrollArea className="h-[calc(100dvh-320px)] min-h-[360px] max-h-[560px] pr-3">
                 {isLoading ? (
-                  <div className="py-10 text-center text-sm text-muted-foreground">Loading feed…</div>
+                  <div className="py-10 text-center text-sm text-slate-500">
+                    <div className="inline-flex items-center gap-2">
+                      <div className="size-4 animate-spin rounded-full border-2 border-slate-200 border-t-emerald-500" />
+                      Loading feed…
+                    </div>
+                  </div>
                 ) : pagedVisible.length ? (
                   <div className="space-y-3">
                     {pagedVisible.map((it) => {
@@ -699,20 +704,22 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                           key={it.id}
                           type="button"
                           onClick={() => openDetails(it)}
-                          className={`group w-full rounded-2xl border p-3 sm:p-4 text-left outline-none transition-all focus-visible:ring-2 focus-visible:ring-emerald-400/50 shadow-[0_1px_0_rgba(255,255,255,0.7),0_10px_30px_rgba(0,0,0,0.06)] hover:-translate-y-[1px] hover:shadow-[0_1px_0_rgba(255,255,255,0.7),0_16px_40px_rgba(0,0,0,0.10)] active:translate-y-0 ${
+                          className={`group w-full rounded-2xl border p-3 sm:p-4 text-left outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-emerald-400/50 shadow-sm hover:shadow-md active:scale-[0.99] ${
                             isCancelled
-                              ? "border-red-700/20 bg-red-50/80 hover:bg-red-50"
-                              : "border-black/15 bg-slate-50/90 hover:bg-slate-50"
+                              ? "border-red-200 bg-gradient-to-br from-red-50/90 to-red-100/70 hover:from-red-50 hover:to-red-100"
+                              : isEvent
+                                ? "border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-white hover:from-emerald-50 hover:to-emerald-50/90"
+                                : "border-slate-200 bg-gradient-to-br from-slate-50/90 to-white hover:from-slate-100 hover:to-slate-50"
                           }`}
                         >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                             <div
-                              className={`grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl border transition-colors group-hover:bg-opacity-90 ${
+                              className={`grid size-10 sm:size-11 shrink-0 place-items-center rounded-xl border shadow-sm transition-all duration-200 group-hover:shadow-md ${
                                 isEvent
                                   ? isCancelled
-                                    ? "border-red-200 bg-red-100 text-red-700"
-                                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : "border-sky-200 bg-sky-50 text-sky-700"
+                                    ? "border-red-200 bg-red-50 text-red-600"
+                                    : "border-emerald-200 bg-emerald-50 text-emerald-600"
+                                  : "border-sky-200 bg-sky-50 text-sky-600"
                               }`}
                             >
                               {isEvent ? <CalendarClock className="size-5" /> : <Megaphone className="size-5" />}
@@ -722,12 +729,12 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                               <div className="flex flex-wrap items-center gap-2 min-w-0">
                                 <Badge
                                   variant="outline"
-                                  className={`rounded-xl ${
+                                  className={`rounded-lg font-medium ${
                                     isEvent
                                       ? isCancelled
-                                        ? "border-red-200 bg-red-100 text-red-700"
-                                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                      : "border-sky-200 bg-sky-50 text-sky-700"
+                                        ? "border-red-200 bg-red-50/80 text-red-700"
+                                        : "border-emerald-200 bg-emerald-50/80 text-emerald-700"
+                                      : "border-sky-200 bg-sky-50/80 text-sky-700"
                                   }`}
                                 >
                                   {isEvent ? "Event" : "Announcement"}
@@ -740,7 +747,7 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                                 <div className="truncate text-sm font-semibold">{it.title}</div>
                               </div>
                               <div
-                                className={`mt-1 text-sm text-muted-foreground ${
+                                className={`mt-1 text-sm text-slate-500 ${
                                   isEvent ? "truncate" : "whitespace-normal break-words line-clamp-2"
                                 }`}
                               >
@@ -748,7 +755,7 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                               </div>
 
                               {mobileMeta ? (
-                                <div className="mt-2 text-xs text-muted-foreground sm:hidden line-clamp-2">
+                                <div className="mt-2 text-xs text-slate-500 sm:hidden line-clamp-2">
                                   {mobileMeta}
                                 </div>
                               ) : null}
@@ -756,27 +763,27 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
 
                             <div className="hidden sm:flex flex-col items-end gap-1 shrink-0">
                               {isEvent ? (
-                                <div className="text-xs font-medium text-slate-700 whitespace-nowrap">
+                                <div className="text-xs font-medium text-slate-600 whitespace-nowrap">
                                   {safeFormatDateKey(it.dateKey) || String(it.dateKey || "")}
                                 </div>
                               ) : null}
                               {isEvent ? (
-                                <div className="text-xs text-muted-foreground whitespace-nowrap">
+                                <div className="text-xs text-slate-400 whitespace-nowrap">
                                   {formatTimeRangeAmPm(it.startTime, it.endTime)}
                                 </div>
                               ) : null}
                             </div>
 
-                            <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                            <ChevronRight className="size-5 shrink-0 text-slate-400 transition-all duration-200 group-hover:text-slate-600 group-hover:translate-x-0.5" />
                           </div>
                         </button>
                       )
                     })}
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-black/10 bg-white/40 p-10 text-center">
-                    <div className="text-sm font-semibold">No items yet</div>
-                    <div className="mt-1 text-sm text-muted-foreground">
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-50/80 to-white p-10 text-center">
+                    <div className="text-sm font-semibold text-slate-700">No items yet</div>
+                    <div className="mt-1 text-sm text-slate-500">
                       Events will appear here automatically. Announcements will show once the backend is connected.
                     </div>
                   </div>
@@ -784,9 +791,9 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
               </ScrollArea>
 
               {!isLoading && visible.length ? (
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-xs text-muted-foreground">
-                    Showing {showingFrom}–{showingTo} of {visible.length}
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-100 pt-4">
+                  <div className="text-xs text-slate-500">
+                    Showing <span className="font-medium text-slate-700">{showingFrom}</span>–<span className="font-medium text-slate-700">{showingTo}</span> of <span className="font-medium text-slate-700">{visible.length}</span>
                   </div>
 
                   {pageCount > 1 ? (
@@ -865,26 +872,26 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
             <div className="flex-1 overflow-y-auto px-6 pb-4">
               {selected?.kind === "event" ? (
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-black/5 bg-white/60 p-4">
-                    <div className="text-base font-semibold">
+                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm">
+                    <div className="text-base font-semibold text-slate-800">
                       {String(selectedEventDetails?.title || selected?.title || "Event")}
                     </div>
                     {String(selectedEventDetails?.status || selected?.status || "") === "Cancelled" ? (
                       <div className="mt-2">
-                        <Badge className="rounded-xl bg-red-600 text-white hover:bg-red-600">Cancelled</Badge>
+                        <Badge className="rounded-lg bg-red-500 text-white hover:bg-red-500">Cancelled</Badge>
                         {String(selectedEventDetails?.cancelReason || selected?.cancelReason || "") ? (
-                          <div className="mt-2 text-sm text-red-700">
+                          <div className="mt-2 text-sm text-red-600">
                             Reason: {String(selectedEventDetails?.cancelReason || selected?.cancelReason || "")}
                           </div>
                         ) : null}
                       </div>
                     ) : null}
-                    <div className="mt-1 text-sm text-muted-foreground">
+                    <div className="mt-2 text-sm text-slate-500">
                       {String(selectedEventDetails?.dateKey || selected?.dateKey || "")
                         ? `${safeFormatDateKey(selectedEventDetails?.dateKey || selected?.dateKey)}`
                         : ""}
                     </div>
-                    <div className="mt-1 text-sm text-muted-foreground">
+                    <div className="mt-1 text-sm text-slate-400">
                       {formatTimeRangeAmPm(
                         String(selectedEventDetails?.startTime || selected?.startTime || ""),
                         String(selectedEventDetails?.endTime || selected?.endTime || "")
@@ -892,24 +899,24 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-black/5 bg-white/60 p-4">
-                    <div className="text-sm font-semibold">More info</div>
-                    <div className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">
+                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm">
+                    <div className="text-sm font-semibold text-slate-700">More info</div>
+                    <div className="mt-2 text-sm text-slate-500 whitespace-pre-wrap">
                       {isDetailsLoading
                         ? "Loading…"
                         : String(selectedEventDetails?.description || "") || "No additional description."}
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-black/5 bg-white/60 p-4">
-                    <div className="text-sm font-semibold">Attachment</div>
-                    <div className="mt-1 text-sm text-muted-foreground">
+                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm">
+                    <div className="text-sm font-semibold text-slate-700">Attachment</div>
+                    <div className="mt-2 text-sm text-slate-500">
                       {selectedEventDetails?.attachment?.url ? (
                         <a
                           href={`${getApiBaseUrl()}${String(selectedEventDetails.attachment.url)}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="font-medium text-emerald-700 underline underline-offset-4"
+                          className="font-medium text-emerald-600 hover:text-emerald-700 underline underline-offset-4"
                         >
                           {String(selectedEventDetails.attachment.originalName || "Download file")}
                         </a>
@@ -921,36 +928,36 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                 </div>
               ) : selected?.kind === "announcement" ? (
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-black/5 bg-white/60 p-4">
-                    <div className="text-base font-semibold">
+                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm">
+                    <div className="text-base font-semibold text-slate-800">
                       {String(selectedAnnouncementDetails?.title || selected?.title || "Announcement")}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="rounded-xl border-sky-200 bg-sky-50 text-sky-700">
+                      <Badge variant="outline" className="rounded-lg border-sky-200 bg-sky-50/80 text-sky-700">
                         Announcement
                       </Badge>
                       {String(selectedAnnouncementDetails?.priority || "") ? (
-                        <Badge variant="secondary" className="rounded-xl">
+                        <Badge variant="secondary" className="rounded-lg">
                           {String(selectedAnnouncementDetails?.priority || "Normal")}
                         </Badge>
                       ) : null}
                       {String(selectedAnnouncementDetails?.audience || "") ? (
-                        <Badge variant="outline" className="rounded-xl">
+                        <Badge variant="outline" className="rounded-lg border-slate-200">
                           {String(selectedAnnouncementDetails?.audience || "All")}
                         </Badge>
                       ) : null}
                     </div>
 
-                    <div className="mt-2 text-sm text-muted-foreground">
+                    <div className="mt-2 text-sm text-slate-400">
                       {selectedAnnouncementDetails?.createdAt
                         ? format(new Date(String(selectedAnnouncementDetails.createdAt)), "MMM d, yyyy • h:mm a")
                         : ""}
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-black/5 bg-white/60 p-4">
-                    <div className="text-sm font-semibold">Message</div>
-                    <div className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">
+                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm">
+                    <div className="text-sm font-semibold text-slate-700">Message</div>
+                    <div className="mt-2 text-sm text-slate-500 whitespace-pre-wrap">
                       {isDetailsLoading
                         ? "Loading…"
                         : String(selectedAnnouncementDetails?.message || selected?.subtitle || "") ||
@@ -958,8 +965,8 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-black/5 bg-white/60 p-4">
-                    <div className="text-sm font-semibold">Attachments</div>
+                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm">
+                    <div className="text-sm font-semibold text-slate-700">Attachments</div>
                     <div className="mt-2">
                       {Array.isArray(selectedAnnouncementDetails?.attachments) &&
                       selectedAnnouncementDetails!.attachments!.length ? (
@@ -975,9 +982,9 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                                 href={abs || undefined}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="group block overflow-hidden rounded-xl border border-black/5 bg-white/70 hover:bg-white"
+                                className="group block overflow-hidden rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all"
                               >
-                                <div className="aspect-video w-full bg-neutral-50">
+                                <div className="aspect-video w-full bg-slate-50">
                                   {isImage && abs ? (
                                     <img
                                       src={abs}
@@ -986,28 +993,28 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                                       loading="lazy"
                                     />
                                   ) : (
-                                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                                    <div className="flex h-full items-center justify-center text-slate-400">
                                       <Paperclip className="size-4" />
                                     </div>
                                   )}
                                 </div>
                                 <div className="px-2 py-2 text-xs">
-                                  <div className="truncate font-medium">{name}</div>
+                                  <div className="truncate font-medium text-slate-700">{name}</div>
                                 </div>
                               </a>
                             )
                           })}
                         </div>
                       ) : (
-                        <div className="text-sm text-muted-foreground">No attachments</div>
+                        <div className="text-sm text-slate-400">No attachments</div>
                       )}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-black/10 bg-white/40 p-8 text-center">
-                  <div className="text-sm font-semibold">Announcements not connected yet</div>
-                  <div className="mt-1 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-50/80 to-white p-8 text-center">
+                  <div className="text-sm font-semibold text-slate-700">Announcements not connected yet</div>
+                  <div className="mt-1 text-sm text-slate-500">
                     Once you add an announcements backend, this modal will show the full details.
                   </div>
                 </div>
@@ -1108,13 +1115,13 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                     }}
                   />
 
-                  <div className="flex flex-col gap-2 rounded-xl border border-dashed border-black/15 bg-white/40 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <ImageIcon className="size-4 text-muted-foreground" />
+                      <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <ImageIcon className="size-4 text-slate-400" />
                         <span className="truncate">Add images / files</span>
                       </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
+                      <div className="mt-1 text-xs text-slate-400">
                         Up to 6 files • 10MB each
                         {createFiles.length ? ` • ${createFiles.length} selected` : ""}
                       </div>
@@ -1123,7 +1130,7 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                     <Button
                       type="button"
                       variant="outline"
-                      className="rounded-xl"
+                      className="rounded-xl border-slate-200"
                       onClick={() => createFilesInputRef.current?.click()}
                     >
                       Select files
@@ -1138,22 +1145,22 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
                         return (
                           <div
                             key={`${f.name}-${idx}`}
-                            className="overflow-hidden rounded-xl border border-black/5 bg-white/70"
+                            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
                           >
-                            <div className="aspect-video bg-neutral-50">
+                            <div className="aspect-video bg-slate-50">
                               {isImage && src ? (
                                 <img src={src} alt={f.name} className="h-full w-full object-cover" />
                               ) : (
-                                <div className="flex h-full items-center justify-center text-muted-foreground">
+                                <div className="flex h-full items-center justify-center text-slate-400">
                                   <Paperclip className="size-4" />
                                 </div>
                               )}
                             </div>
                             <div className="flex items-center justify-between gap-2 px-2 py-2">
-                              <div className="min-w-0 truncate text-xs font-medium">{f.name}</div>
+                              <div className="min-w-0 truncate text-xs font-medium text-slate-700">{f.name}</div>
                               <button
                                 type="button"
-                                className="shrink-0 rounded-lg border border-black/10 bg-white px-2 py-1 text-[11px] hover:bg-neutral-50"
+                                className="shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50 hover:text-slate-800"
                                 onClick={() => {
                                   setCreateFiles((prev) => prev.filter((_, i) => i !== idx))
                                 }}

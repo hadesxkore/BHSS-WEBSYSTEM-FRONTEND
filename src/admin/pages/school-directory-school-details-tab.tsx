@@ -326,13 +326,18 @@ export function SchoolDirectorySchoolDetailsTab({
     try {
       const buf = await file.arrayBuffer()
       const wb = XLSX.read(buf, { type: "array" })
-      const firstSheetName = wb.SheetNames?.[0]
-      if (!firstSheetName) {
+      
+      // Look for "DIRECTORY 2025" sheet, fallback to first sheet if not found
+      const targetSheetName = wb.SheetNames?.find(
+        (name) => name.trim().toLowerCase() === "directory 2025"
+      ) || wb.SheetNames?.[0]
+      
+      if (!targetSheetName) {
         toast.error("No sheet found in the uploaded file.")
         return
       }
 
-      const ws = wb.Sheets[firstSheetName]
+      const ws = wb.Sheets[targetSheetName]
       const rows = (XLSX.utils.sheet_to_json(ws, {
         header: 1,
         defval: "",
