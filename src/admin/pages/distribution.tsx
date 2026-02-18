@@ -389,7 +389,7 @@ function LpgDistributionPage() {
           ) : (
             <div className="rounded-2xl border bg-white/70 overflow-hidden">
               <div className="max-h-[70vh] overflow-auto touch-pan-x overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-                <Table className="min-w-[980px] w-full border-collapse text-sm">
+                <Table className="min-w-[320px] sm:min-w-[600px] md:min-w-[800px] w-full border-collapse text-sm">
                   <TableHeader>
                     <TableRow>
                       <TableHead
@@ -425,11 +425,11 @@ function LpgDistributionPage() {
 
                       const lguRow = (
                         <TableRow key={`lgu-${muni}`}>
-                          <TableCell className="border border-emerald-900/20 px-2 py-1 text-center font-semibold">
+                          <TableCell className="border border-emerald-900/20 px-2 py-1 text-center font-semibold w-[100px] sm:w-[120px]">
                             LGU
                           </TableCell>
                           <TableCell className="border border-emerald-900/20 px-2 py-1">BHSS Kitchen</TableCell>
-                          <TableCell className="border border-emerald-900/20 px-2 py-1 text-right tabular-nums"></TableCell>
+                          <TableCell className="border border-emerald-900/20 px-2 py-1 text-right tabular-nums w-[80px] sm:w-[100px]"></TableCell>
                         </TableRow>
                       )
 
@@ -438,16 +438,16 @@ function LpgDistributionPage() {
                           {idx === 0 ? (
                             <TableCell
                               rowSpan={muniRows.length}
-                              className="border border-emerald-900/20 px-2 py-1 align-middle text-center font-semibold"
+                              className="border border-emerald-900/20 px-2 py-1 align-middle text-center font-semibold w-[100px] sm:w-[120px]"
                             >
                               {muni}
                             </TableCell>
                           ) : null}
                           <TableCell className="border border-emerald-900/20 px-2 py-1">
-                            <div className="max-w-[380px] truncate">{r.school}</div>
+                            <div className="max-w-[160px] sm:max-w-[280px] md:max-w-[380px] truncate">{r.school}</div>
                           </TableCell>
                           <TableCell
-                            className="border border-emerald-900/20 px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-emerald-50"
+                            className="border border-emerald-900/20 px-2 py-1 text-right tabular-nums cursor-pointer hover:bg-emerald-50 w-[80px] sm:w-[100px]"
                             onClick={() => setEditing({ rowId: r.id, value: String(r.gasul ?? "") })}
                           >
                             {r.gasul || ""}
@@ -457,9 +457,9 @@ function LpgDistributionPage() {
 
                       const subtotalRow = (
                         <TableRow key={`sub-${muni}`}>
+                          <TableCell className="border border-emerald-900/20 px-2 py-1 w-[100px] sm:w-[120px]"></TableCell>
                           <TableCell className="border border-emerald-900/20 px-2 py-1"></TableCell>
-                          <TableCell className="border border-emerald-900/20 px-2 py-1"></TableCell>
-                          <TableCell className="border border-emerald-900/20 px-2 py-1 text-right tabular-nums font-semibold">
+                          <TableCell className="border border-emerald-900/20 px-2 py-1 text-right tabular-nums font-semibold w-[80px] sm:w-[100px]">
                             {muniTotals.gasul || ""}
                           </TableCell>
                         </TableRow>
@@ -477,7 +477,7 @@ function LpgDistributionPage() {
                         >
                           Grand Total
                         </TableCell>
-                        <TableCell className="border border-emerald-900/20 bg-emerald-50 px-2 py-2 text-right tabular-nums font-bold text-emerald-950">
+                        <TableCell className="border border-emerald-900/20 bg-emerald-50 px-2 py-2 text-right tabular-nums font-bold text-emerald-950 w-[80px] sm:w-[100px]">
                           {totals.gasul}
                         </TableCell>
                       </TableRow>

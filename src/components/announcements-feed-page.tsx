@@ -668,14 +668,23 @@ export function AnnouncementsFeedPage({ mode = "user" }: { mode?: "user" | "admi
         <CardContent className="pt-5">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
             <TabsList className="w-full bg-slate-100/80 p-1">
-              <TabsTrigger value="all" className="flex-1 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsTrigger value="all" className="flex-1 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm gap-2">
                 All
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-medium rounded-full bg-red-500 text-white">
+                  {mergedAll.length}
+                </span>
               </TabsTrigger>
-              <TabsTrigger value="announcements" className="flex-1 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsTrigger value="announcements" className="flex-1 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm gap-2">
                 Announcements
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-medium rounded-full bg-red-500 text-white">
+                  {announcements.length}
+                </span>
               </TabsTrigger>
-              <TabsTrigger value="events" className="flex-1 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsTrigger value="events" className="flex-1 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm gap-2">
                 Events
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-medium rounded-full bg-red-500 text-white">
+                  {events.length}
+                </span>
               </TabsTrigger>
             </TabsList>
 
