@@ -4,6 +4,7 @@ import {
   ArrowUpDown,
   CalendarDays,
   ClipboardCheck,
+  MessageSquare,
   Search,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -22,6 +23,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Table,
   TableBody,
@@ -122,6 +130,7 @@ export function Attendance() {
   const [sortDir, setSortDir] = useState<SortDir>("asc")
 
   const [rows, setRows] = useState<AttendanceRow[]>([])
+  const [selectedNotes, setSelectedNotes] = useState<{school: string; grade: string; notes: string} | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const dayKey = useMemo(() => startOfDayKey(selectedDate), [selectedDate])
@@ -341,19 +350,22 @@ export function Attendance() {
       </div>
 
       <Card>
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-base">Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-3">
-              <Label>Date</Label>
-              <div className="mt-2 flex min-w-0 items-center gap-2">
+        <CardHeader className="space-y-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Attendance List</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{sorted.length}</span> result(s)
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs">Date</Label>
+              <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full min-w-0 flex-1 justify-start">
-                      <CalendarDays className="size-4" />
-                      {format(selectedDate, "PPP")}
+                    <Button variant="outline" className="h-8 px-3 text-sm">
+                      <CalendarDays className="mr-2 size-4" />
+                      {format(selectedDate, "MMM d, yyyy")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -365,10 +377,10 @@ export function Attendance() {
                     />
                   </PopoverContent>
                 </Popover>
-
                 <Button
                   variant="secondary"
-                  className="shrink-0"
+                  size="sm"
+                  className="h-8 px-3"
                   onClick={() => setSelectedDate(new Date())}
                 >
                   Today
@@ -376,96 +388,78 @@ export function Attendance() {
               </div>
             </div>
 
-            <div className="lg:col-span-3">
-              <Label>Municipality</Label>
-              <div className="mt-2">
-                <Select
-                  value={selectedMunicipality}
-                  onValueChange={(v) => {
-                    setSelectedMunicipality(v)
-                    setSelectedSchool("All")
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select municipality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All</SelectItem>
-                    {MUNICIPALITIES.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="lg:col-span-3">
-              <Label>School</Label>
-              <div className="mt-2">
-                <Select
-                  value={selectedSchool}
-                  onValueChange={setSelectedSchool}
-                  disabled={selectedMunicipality === "All"}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue
-                      placeholder={
-                        selectedMunicipality === "All" ? "Select municipality first" : "Select school"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All</SelectItem>
-                    {schoolsForSelectedMunicipality.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="lg:col-span-12">
-              <Label>Search</Label>
-              <div className="mt-2">
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search school, municipality, grade, status..."
-                />
-              </div>
-            </div>
-
-            <div className="lg:col-span-12 flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
-                Showing <span className="font-medium text-foreground">{sorted.length}</span> result(s)
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedDate(new Date())
-                  setSelectedMunicipality("All")
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs">Municipality</Label>
+              <Select
+                value={selectedMunicipality}
+                onValueChange={(v) => {
+                  setSelectedMunicipality(v)
                   setSelectedSchool("All")
-                  setSearch("")
-                  setSortKey("municipality")
-                  setSortDir("asc")
                 }}
               >
-                Reset filters
-              </Button>
+                <SelectTrigger className="h-8 w-[160px] text-sm">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All</SelectItem>
+                  {MUNICIPALITIES.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-base">Attendance List</CardTitle>
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs">School</Label>
+              <Select
+                value={selectedSchool}
+                onValueChange={setSelectedSchool}
+                disabled={selectedMunicipality === "All"}
+              >
+                <SelectTrigger className="h-8 w-[180px] text-sm">
+                  <SelectValue placeholder={selectedMunicipality === "All" ? "Select municipality first" : "All"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All</SelectItem>
+                  {schoolsForSelectedMunicipality.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5 flex-1 min-w-[200px]">
+              <Label className="text-xs">Search</Label>
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search school, municipality, grade..."
+                className="h-8 text-sm"
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3"
+              onClick={() => {
+                setSelectedDate(new Date())
+                setSelectedMunicipality("All")
+                setSelectedSchool("All")
+                setSearch("")
+                setSortKey("municipality")
+                setSortDir("asc")
+              }}
+            >
+              Reset
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -524,12 +518,13 @@ export function Attendance() {
                     <ArrowUpDown className={sortKey === "absent" ? "opacity-100" : "opacity-40"} />
                   </Button>
                 </TableHead>
+                <TableHead className="text-right">Notes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sorted.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                     {isLoading ? "Loading..." : "No data for the selected filters."}
                   </TableCell>
                 </TableRow>
@@ -545,6 +540,21 @@ export function Attendance() {
                     <TableCell>
                       <Badge variant="secondary">{row.absent}</Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl"
+                        onClick={() => setSelectedNotes({
+                          school: row.school,
+                          grade: row.grade,
+                          notes: row.notes
+                        })}
+                      >
+                        <MessageSquare className="mr-1 size-3.5" />
+                        View Notes
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -552,6 +562,31 @@ export function Attendance() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!selectedNotes} onOpenChange={(open) => !open && setSelectedNotes(null)}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Notes</DialogTitle>
+            <DialogDescription>
+              {selectedNotes?.school} • Grade {selectedNotes?.grade}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border bg-slate-50 p-4">
+            <div className="text-sm text-slate-700 whitespace-pre-wrap">
+              {selectedNotes?.notes || "No notes provided."}
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setSelectedNotes(null)}
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

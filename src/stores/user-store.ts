@@ -9,6 +9,7 @@ export type BhssUser = {
   contactNumber?: string
   schoolAddress?: string
   hlaManagerName?: string
+  hlaRoleType?: "HLA Manager" | "HLA Coordinator"
   municipality: string
   province: string
   role: "user" | "admin"
@@ -26,6 +27,7 @@ export type CreateBhssUserInput = {
   contactNumber?: string
   schoolAddress?: string
   hlaManagerName?: string
+  hlaRoleType?: string
   province?: string
   role?: "user" | "admin"
 }
@@ -106,12 +108,14 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const data = (await apiFetch("/api/users")) as { users: BhssUser[] }
+      console.log("API Response users:", data.users)
       const next = Array.isArray(data.users)
         ? data.users.map((u: any) => ({
             ...u,
             email: typeof u?.email === "string" ? u.email : "",
           }))
         : []
+      console.log("Mapped users with hlaRoleType:", next.map(u => ({ name: u.name, hlaRoleType: u.hlaRoleType })))
       set({ users: next })
     } catch (e: any) {
       set({ error: e?.message || "Failed to load users" })
@@ -124,6 +128,7 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const email = String(input.email || "").trim()
+      const hlaRoleType = String(input.hlaRoleType || "").trim()
       await apiFetch("/api/users", {
         method: "POST",
         body: JSON.stringify({
@@ -136,6 +141,7 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
           contactNumber: input.contactNumber,
           schoolAddress: input.schoolAddress,
           hlaManagerName: input.hlaManagerName,
+          ...(hlaRoleType ? { hlaRoleType } : {}),
           province: input.province || "Bataan",
           role: input.role || "user",
         }),

@@ -143,6 +143,10 @@ export function AdminUsers() {
   const [createDialogTab, setCreateDialogTab] = useState<"info" | "account">(
     "info"
   )
+  const [hlaRoleType, setHlaRoleType] = useState<"manager" | "coordinator">(
+    "manager"
+  )
+  const [hlaRoleFilterTab, setHlaRoleFilterTab] = useState<"all" | "manager" | "coordinator">("all")
 
   const schoolYear = "2025-2026"
   const detailsRows = useSchoolDirectoryStore((s) => s.detailsRows)
@@ -212,9 +216,10 @@ export function AdminUsers() {
     return users.filter((u) => {
       if (roleTab !== "all" && u.role !== roleTab) return false
       if (selectedMunicipality !== "all" && u.municipality !== selectedMunicipality) return false
+      if (hlaRoleFilterTab !== "all" && u.hlaRoleType !== (hlaRoleFilterTab === "manager" ? "HLA Manager" : "HLA Coordinator")) return false
       return true
     })
-  }, [roleTab, selectedMunicipality, users])
+  }, [roleTab, selectedMunicipality, hlaRoleFilterTab, users])
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(filteredUsers.length / pageSize))
@@ -228,7 +233,7 @@ export function AdminUsers() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [roleTab, selectedMunicipality])
+  }, [roleTab, selectedMunicipality, hlaRoleFilterTab])
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -242,8 +247,6 @@ export function AdminUsers() {
 
   const createMunicipality = form.watch("municipality")
   const createSchoolName = form.watch("schoolName")
-
-  const norm = (v: unknown) => String(v || "").trim().toLowerCase()
 
   useEffect(() => {
     if (!isDialogOpen) return
@@ -261,25 +264,28 @@ export function AdminUsers() {
 
   const schoolOptions = useMemo(() => {
     const m = String(createMunicipality || "").trim()
-    if (!m) return []
-
-    const taken = new Set(
-      (users || [])
-        .filter((u) => norm(u.municipality) === norm(m))
-        .map((u) => norm(u.school))
-        .filter(Boolean)
-    )
-
-    return (detailsRows || [])
+    if (!m || !schoolYear) {
+      return []
+    }
+    const norm = (s?: string) => (s || "").trim().toLowerCase()
+    
+    // Only filter out taken schools for HLA Manager, not for Coordinator
+    let taken = new Set<string>()
+    if (hlaRoleType === "manager") {
+      taken = new Set(
+        (users || [])
+          .filter((u) => norm(u.municipality) === norm(m))
+          .map((u) => norm(u.school))
+          .filter(Boolean)
+      )
+    }
+    
+    const options = (detailsRows || [])
       .filter((r) => r.municipality === m && r.schoolYear === schoolYear)
-      .map((r) => ({
-        id: r.id,
-        label: r.completeName,
-      }))
-      .filter((x) => String(x.label || "").trim())
+      .map((r) => ({ id: r.id, label: r.completeName }))
       .filter((x) => !taken.has(norm(x.label)))
-      .sort((a, b) => a.label.localeCompare(b.label))
-  }, [createMunicipality, detailsRows, schoolYear, users])
+    return options
+  }, [createMunicipality, detailsRows, schoolYear, users, hlaRoleType])
 
   useEffect(() => {
     if (!isDialogOpen) return
@@ -301,6 +307,7 @@ export function AdminUsers() {
         province: "Bataan",
         contactNumber: values.contactNumber,
         schoolAddress: values.schoolAddress,
+        hlaRoleType: hlaRoleType === "manager" ? "HLA Manager" : "HLA Coordinator",
       })
       toast.success("User created successfully")
       setIsDialogOpen(false)
@@ -443,33 +450,19 @@ export function AdminUsers() {
                 <TabsContent value="info" className="mt-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="grid gap-2">
-                      <Label htmlFor="email">Email Address/Facebook</Label>
-                      <Input id="email" type="text" {...form.register("email")} />
-                      {form.formState.errors.email?.message && (
-                        <p className="text-sm text-destructive">
-                          {form.formState.errors.email.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="contactNumber">Contact Number</Label>
-                      <Input id="contactNumber" {...form.register("contactNumber")} />
-                      {form.formState.errors.contactNumber?.message && (
-                        <p className="text-sm text-destructive">
-                          {form.formState.errors.contactNumber.message as any}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="grid gap-2 sm:col-span-2">
-                      <Label htmlFor="schoolAddress">School Address</Label>
-                      <Input id="schoolAddress" {...form.register("schoolAddress")} />
-                      {form.formState.errors.schoolAddress?.message && (
-                        <p className="text-sm text-destructive">
-                          {form.formState.errors.schoolAddress.message as any}
-                        </p>
-                      )}
+                      <Label htmlFor="hlaRoleType">HLA Role Type</Label>
+                      <Select
+                        value={hlaRoleType}
+                        onValueChange={(value) => setHlaRoleType(value as "manager" | "coordinator")}
+                      >
+                        <SelectTrigger id="hlaRoleType">
+                          <SelectValue placeholder="Select HLA Role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manager">HLA Manager</SelectItem>
+                          <SelectItem value="coordinator">HLA Coordinator</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="grid gap-2">
@@ -502,6 +495,14 @@ export function AdminUsers() {
                     </div>
 
                     <div className="grid gap-2">
+                      <Label htmlFor="name">{hlaRoleType === "manager" ? "HLA Manager" : "HLA Coordinator"}</Label>
+                      <Input id="name" {...form.register("name")} />
+                      {form.formState.errors.name?.message && (
+                        <p className="text-sm text-destructive">{form.formState.errors.name.message as any}</p>
+                      )}
+                    </div>
+
+                    <div className="grid gap-2">
                       <Label htmlFor="schoolName">School Name</Label>
                       <Select
                         value={createSchoolName}
@@ -511,7 +512,7 @@ export function AdminUsers() {
                             shouldDirty: true,
                           })
 
-                          const m = String(createMunicipality || "").trim()
+                          const m = String(form.watch("municipality") || "").trim()
                           const row = (detailsRows || []).find(
                             (r) => r.municipality === m && r.schoolYear === schoolYear && r.completeName === value
                           )
@@ -523,15 +524,21 @@ export function AdminUsers() {
                               form.setValue(key as any, v, { shouldValidate: true })
                             }
 
-                            maybeSet("name", String(row.hlaManagerName || "").trim())
-                            maybeSet("contactNumber", String(row.hlaManagerContact || "").trim())
-                            maybeSet("email", String(row.hlaManagerFacebook || "").trim())
+                            if (hlaRoleType === "manager") {
+                              maybeSet("name", String(row.hlaManagerName || "").trim())
+                              maybeSet("contactNumber", String(row.hlaManagerContact || "").trim())
+                              maybeSet("email", String(row.hlaManagerFacebook || "").trim())
+                            } else {
+                              maybeSet("name", String(row.hlaCoordinatorName || "").trim())
+                              maybeSet("contactNumber", String(row.hlaCoordinatorContact || "").trim())
+                              maybeSet("email", String(row.hlaCoordinatorFacebook || "").trim())
+                            }
                           }
                         }}
-                        disabled={!createMunicipality}
+                        disabled={!form.watch("municipality")}
                       >
                         <SelectTrigger id="schoolName">
-                          <SelectValue placeholder={createMunicipality ? "Select school" : "Select municipality first"} />
+                          <SelectValue placeholder={form.watch("municipality") ? "Select school" : "Select municipality first"} />
                         </SelectTrigger>
                         <SelectContent>
                           {schoolOptions.map((s) => (
@@ -548,11 +555,33 @@ export function AdminUsers() {
                       )}
                     </div>
 
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Email Address/Facebook</Label>
+                      <Input id="email" type="text" {...form.register("email")} />
+                      {form.formState.errors.email?.message && (
+                        <p className="text-sm text-destructive">
+                          {form.formState.errors.email.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="contactNumber">Contact Number</Label>
+                      <Input id="contactNumber" {...form.register("contactNumber")} />
+                      {form.formState.errors.contactNumber?.message && (
+                        <p className="text-sm text-destructive">
+                          {form.formState.errors.contactNumber.message as any}
+                        </p>
+                      )}
+                    </div>
+
                     <div className="grid gap-2 sm:col-span-2">
-                      <Label htmlFor="name">HLA Manager</Label>
-                      <Input id="name" {...form.register("name")} />
-                      {form.formState.errors.name?.message && (
-                        <p className="text-sm text-destructive">{form.formState.errors.name.message as any}</p>
+                      <Label htmlFor="schoolAddress">School Address</Label>
+                      <Input id="schoolAddress" {...form.register("schoolAddress")} />
+                      {form.formState.errors.schoolAddress?.message && (
+                        <p className="text-sm text-destructive">
+                          {form.formState.errors.schoolAddress.message as any}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -721,15 +750,30 @@ export function AdminUsers() {
         </CardHeader>
         <CardContent>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Tabs value={roleTab} onValueChange={(v) => setRoleTab(v as any)}>
-              <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="admin">Admins</TabsTrigger>
-                <TabsTrigger value="user">Users</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-start">
+              <Tabs value={roleTab} onValueChange={(v) => setRoleTab(v as any)}>
+                <TabsList>
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="admin">Admins</TabsTrigger>
+                  <TabsTrigger value="user">Users</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+              <div className="w-full sm:w-[180px]">
+                <Select value={hlaRoleFilterTab} onValueChange={(v) => setHlaRoleFilterTab(v as any)}>
+                  <SelectTrigger className="h-9 rounded-xl">
+                    <SelectValue placeholder="HLA Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All HLA Roles</SelectItem>
+                    <SelectItem value="manager">HLA Manager</SelectItem>
+                    <SelectItem value="coordinator">HLA Coordinator</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="w-full sm:w-[220px]">
                 <Select value={selectedMunicipality} onValueChange={(v) => setSelectedMunicipality(v)}>
                   <SelectTrigger className="h-9 rounded-xl">
@@ -759,6 +803,7 @@ export function AdminUsers() {
                 <TableHead>Email</TableHead>
                 <TableHead>Username</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>HLA Role</TableHead>
                 <TableHead>School</TableHead>
                 <TableHead>Municipality</TableHead>
                 <TableHead>Province</TableHead>
@@ -770,7 +815,7 @@ export function AdminUsers() {
               {filteredUsers.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={10}
                     className="text-center text-muted-foreground"
                   >
                     {isLoading
@@ -793,6 +838,11 @@ export function AdminUsers() {
                     <TableCell>
                       <Badge variant={u.role === "admin" ? "default" : "secondary"}>
                         {u.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {u.hlaRoleType || "-"}
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-[220px] truncate">{u.school}</TableCell>

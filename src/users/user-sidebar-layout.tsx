@@ -11,6 +11,7 @@ import {
   School,
   Mail,
   Settings,
+  FileText,
 } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
 import { io, type Socket } from "socket.io-client"
@@ -48,6 +49,7 @@ import { UserAccount } from "./pages/account"
 import { UserAttendance } from "./pages/attendance"
 import { UserAnnouncements } from "./pages/announcements"
 import { UserEventCalendar } from "./pages/event-calendar"
+import { FileSubmission } from "@/users/pages/file-submission"
 
 type UserSidebarLayoutProps = {
   userEmail?: string
@@ -64,9 +66,11 @@ type AuthState = {
     email: string
     name: string
     role: string
+    position?: string
     school?: string
     municipality?: string
     avatarUrl?: string
+    hlaRoleType?: string
   }
 }
 
@@ -287,7 +291,7 @@ type UserMenuItem = {
   component: React.ComponentType
 }
 
-const userMenuItems: UserMenuItem[] = [
+const ALL_MENU_ITEMS: UserMenuItem[] = [
   {
     title: "Home",
     icon: LayoutDashboard,
@@ -314,11 +318,33 @@ const userMenuItems: UserMenuItem[] = [
     component: UserAttendance,
   },
   {
+    title: "File Submission",
+    icon: FileText,
+    component: FileSubmission,
+  },
+  {
     title: "Account",
     icon: Settings,
     component: UserAccount,
   },
 ]
+
+function getMenuItemsForRole(hlaRoleType?: string): UserMenuItem[] {
+  const isCoordinator = hlaRoleType === "HLA Coordinator"
+  const isManager = hlaRoleType === "HLA Manager"
+
+  return ALL_MENU_ITEMS.filter((item) => {
+    // Coordinator cannot see Delivery and Attendance
+    if (isCoordinator && (item.title === "Delivery" || item.title === "Attendance")) {
+      return false
+    }
+    // Manager cannot see File Submission
+    if (isManager && item.title === "File Submission") {
+      return false
+    }
+    return true
+  })
+}
 
 export function UserSidebarLayout({
   userEmail,
@@ -326,13 +352,14 @@ export function UserSidebarLayout({
   userMunicipality,
   onLogout,
 }: UserSidebarLayoutProps) {
-  const [activeItem, setActiveItem] = useState<string>(
-    userMenuItems[0]?.title || "Home"
-  )
+  const [activeItem, setActiveItem] = useState<string>("Home")
 
   const [authUser, setAuthUser] = useState<AuthState["user"] | null>(() => {
     return getAuth()?.user || null
   })
+
+  // Get filtered menu items based on user's HLA role type
+  const userMenuItems = useMemo(() => getMenuItemsForRole(authUser?.hlaRoleType), [authUser?.hlaRoleType])
 
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifTab, setNotifTab] = useState<"all" | "announcements" | "events">("all")
@@ -700,6 +727,7 @@ export function UserSidebarLayout({
           school: u.school ?? prev?.school ?? auth.user.school,
           municipality: u.municipality ?? prev?.municipality ?? auth.user.municipality,
           avatarUrl: u.avatarUrl ?? prev?.avatarUrl ?? (auth.user as any)?.avatarUrl,
+          hlaRoleType: u.hlaRoleType ?? prev?.hlaRoleType ?? (auth.user as any)?.hlaRoleType,
         }))
       } catch {
         // ignore
@@ -727,6 +755,7 @@ export function UserSidebarLayout({
             school: u.school ?? prev?.school ?? auth.user.school,
             municipality: u.municipality ?? prev?.municipality ?? auth.user.municipality,
             avatarUrl: u.avatarUrl ?? prev?.avatarUrl ?? (auth.user as any)?.avatarUrl,
+            hlaRoleType: u.hlaRoleType ?? prev?.hlaRoleType ?? (auth.user as any)?.hlaRoleType,
           }))
         })
         .catch(() => {})

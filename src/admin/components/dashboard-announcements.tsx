@@ -283,6 +283,7 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
               const message = safeText(a.message)
               const imageUrls = getImageUrls(a)
               const previewUrl = imageUrls[0] || pickPreviewImageUrl(a)
+              const extraCount = Math.max(0, imageUrls.length - 1)
 
               return (
                 <button
@@ -295,37 +296,14 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
                   className="group overflow-hidden rounded-2xl border border-black/5 bg-white/60 hover:bg-white/75 transition-colors"
                 >
                   <div className="relative h-40 w-full overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 sm:h-44">
-                    {imageUrls.length > 1 ? (
-                      <AutoCarousel className="h-full w-full">
-                        <CarouselContent className="h-full">
-                          {imageUrls.map((url, idx) => (
-                            <CarouselItem key={`${id || title}-img-${idx}`} className="h-full">
-                              <div className="h-full w-full">
-                                <img
-                                  src={url}
-                                  alt={`${title} image ${idx + 1}`}
-                                  className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
-                                  loading="lazy"
-                                />
-                              </div>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        <CarouselPrevious
-                          variant="secondary"
-                          className="left-2 top-1/2 -translate-y-1/2 size-8 rounded-full bg-white/70 hover:bg-white"
-                        />
-                        <CarouselNext
-                          variant="secondary"
-                          className="right-2 top-1/2 -translate-y-1/2 size-8 rounded-full bg-white/70 hover:bg-white"
-                        />
-                      </AutoCarousel>
-                    ) : previewUrl ? (
+                    {previewUrl ? (
                       <img
                         src={previewUrl}
                         alt={title}
                         className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                         loading="lazy"
+                        decoding="async"
+                        fetchPriority="low"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-slate-400">
@@ -335,6 +313,17 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
                         </div>
                       </div>
                     )}
+
+                    {extraCount > 0 ? (
+                      <div className="absolute bottom-3 right-3">
+                        <Badge
+                          variant="secondary"
+                          className="rounded-xl border border-black/5 bg-white/75 text-slate-800"
+                        >
+                          +{extraCount}
+                        </Badge>
+                      </div>
+                    ) : null}
 
                     <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
                       {a.priority ? (

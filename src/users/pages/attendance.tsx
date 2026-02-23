@@ -11,6 +11,8 @@ import {
   Save,
   Search,
   Users,
+  MessageSquare,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -79,10 +81,24 @@ type AttendanceRecord = {
   updatedAtIso: string
 }
 
-const GRADE_OPTIONS = ["Grade 2", "Grade 3", "Grade 4"] as const
+type PendingAttendanceEntry = {
+  grade: string
+  present: number
+  absent: number
+  notes: string
+}
+
+const GRADE_OPTIONS = [
+  "Grade 1",
+  "Grade 2",
+  "Grade 3",
+  "Grade 4",
+  "Grade 5",
+  "Grade 6",
+] as const
 type GradeOption = (typeof GRADE_OPTIONS)[number] | "Custom"
 
-const ALL_GRADES = Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`)
+const ALL_GRADES = Array.from({ length: 6 }, (_, i) => `Grade ${i + 1}`)
 
 function getAuth(): AuthState | null {
   try {
@@ -159,6 +175,8 @@ export function UserAttendance() {
   const [absent, setAbsent] = useState("0")
   const [notes, setNotes] = useState("")
 
+  const [pendingEntries, setPendingEntries] = useState<PendingAttendanceEntry[]>([])
+
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [isDateLoading, setIsDateLoading] = useState(false)
 
@@ -203,38 +221,7 @@ export function UserAttendance() {
     const run = async () => {
       setIsDateLoading(true)
       try {
-        const data = (await apiFetch(
-          `/api/attendance/by-date/${encodeURIComponent(dateKey)}`
-        )) as { record?: any | null }
-
-        const r = data?.record
-        if (r) {
-          const loadedGrade = String(r.grade ?? "").trim()
-          if (GRADE_OPTIONS.includes(loadedGrade as any)) {
-            setGradeOption(loadedGrade as GradeOption)
-            setCustomGrade("")
-            setLastPresetGrade(loadedGrade as Exclude<GradeOption, "Custom">)
-          } else if (loadedGrade) {
-            setGradeOption("Custom")
-            setCustomGrade(loadedGrade)
-            setCustomGradeDraft(loadedGrade)
-          } else {
-            setGradeOption("Grade 2")
-            setCustomGrade("")
-            setLastPresetGrade("Grade 2")
-          }
-          setPresent(String(r.present ?? 0))
-          setAbsent(String(r.absent ?? 0))
-          setNotes(String(r.notes ?? ""))
-        } else {
-          setGradeOption("Grade 2")
-          setCustomGrade("")
-          setLastPresetGrade("Grade 2")
-          setCustomGradeDraft("")
-          setPresent("0")
-          setAbsent("0")
-          setNotes("")
-        }
+        await apiFetch(`/api/attendance/by-date/${encodeURIComponent(dateKey)}/all`)
       } catch (e: any) {
         toast.error(e?.message || "Failed to load attendance")
       } finally {
@@ -245,6 +232,9 @@ export function UserAttendance() {
     run()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, date])
+
+  const pendingCount = pendingEntries.length
+  const isBatch = pendingCount > 0
 
   const totals = useMemo(() => {
     const now = new Date()
@@ -477,6 +467,11 @@ export function UserAttendance() {
       return
     }
 
+    if (pendingEntries.length > 0) {
+      toast.error("You have pending entries. Use Save all.")
+      return
+    }
+
     const p = safeInt(present)
     const a = safeInt(absent)
 
@@ -544,6 +539,69 @@ export function UserAttendance() {
       } catch {
         // ignore
       }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to save")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const addPendingEntry = () => {
+    if (!date) {
+      toast.error("Please select a date")
+      return
+    }
+
+    const p = safeInt(present)
+    const a = safeInt(absent)
+    const finalGrade = (gradeOption === "Custom" ? customGrade : gradeOption).trim()
+
+    if (!finalGrade) {
+      toast.error("Please select a grade")
+      return
+    }
+    if (p + a <= 0) {
+      toast.error("Please enter at least one value")
+      return
+    }
+
+    setPendingEntries((prev) => {
+      const next = prev.filter((x) => x.grade !== finalGrade)
+      next.unshift({ grade: finalGrade, present: p, absent: a, notes: notes.trim() || "" })
+      return next
+    })
+
+    setPresent("")
+    setAbsent("")
+    setNotes("")
+  }
+
+  const savePendingAll = async () => {
+    if (!userId) {
+      toast.error("Not authenticated")
+      return
+    }
+    if (!date) {
+      toast.error("Please select a date")
+      return
+    }
+    if (!pendingEntries.length) {
+      toast.error("No pending entries")
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const dateKey = startOfDayKey(date)
+      await apiFetch("/api/attendance/record/bulk", {
+        method: "POST",
+        body: JSON.stringify({ dateKey, entries: pendingEntries }),
+      })
+
+      toast.success(`Saved ${pendingEntries.length} grade${pendingEntries.length !== 1 ? "s" : ""}`)
+      setPendingEntries([])
+
+      await apiFetch(`/api/attendance/by-date/${encodeURIComponent(dateKey)}/all`)
     } catch (e: any) {
       toast.error(e?.message || "Failed to save")
     } finally {
@@ -666,13 +724,8 @@ export function UserAttendance() {
                       setCustomGradeDraft("")
                     }}
                   >
-                    <SelectTrigger className="h-10 rounded-xl">
-                      <span
-                        className="truncate"
-                        aria-label={
-                          gradeOption === "Custom" ? `Selected grade: ${customGrade || "Custom"}` : gradeOption
-                        }
-                      >
+                    <SelectTrigger className="h-10 w-full rounded-xl">
+                      <span className="truncate">
                         {gradeOption === "Custom" ? customGrade || "Custom" : gradeOption}
                       </span>
                     </SelectTrigger>
@@ -694,6 +747,9 @@ export function UserAttendance() {
                     inputMode="numeric"
                     value={present}
                     onChange={(e) => setPresent(e.target.value.replace(/[^0-9]/g, ""))}
+                    onFocus={() => {
+                      if (String(present) === "0") setPresent("")
+                    }}
                     className="h-10 rounded-xl"
                   />
                 </div>
@@ -705,9 +761,24 @@ export function UserAttendance() {
                     inputMode="numeric"
                     value={absent}
                     onChange={(e) => setAbsent(e.target.value.replace(/[^0-9]/g, ""))}
+                    onFocus={() => {
+                      if (String(absent) === "0") setAbsent("")
+                    }}
                     className="h-10 rounded-xl"
                   />
                 </div>
+              </div>
+
+              <div className="flex justify-stretch sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full rounded-xl sm:w-auto"
+                  onClick={addPendingEntry}
+                  disabled={isSaving || isDateLoading}
+                >
+                  Add another
+                </Button>
               </div>
 
               <div className="space-y-2">
@@ -717,15 +788,89 @@ export function UserAttendance() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="min-h-[90px] rounded-xl"
-                  placeholder="e.g., Half-day, event, power interruption…"
+                  placeholder="Optional"
                 />
               </div>
 
+              <div className="grid gap-3">
+                <Card className="rounded-2xl">
+                  <CardHeader>
+                    <CardTitle className="text-base">Pending entries</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {pendingEntries.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No pending entries.</div>
+                    ) : (
+                      pendingEntries.map((e) => (
+                        <div
+                          key={`pending-${e.grade}`}
+                          className="flex items-start justify-between gap-3 rounded-xl border bg-slate-50 p-3"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-medium">{e.grade}</div>
+                            <div className="text-xs text-muted-foreground">
+                              Present {e.present} • Absent {e.absent}
+                            </div>
+                            {!!e.notes && (
+                              <div className="mt-1 text-xs text-muted-foreground truncate">{e.notes}</div>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="rounded-xl"
+                            onClick={() => setPendingEntries((prev) => prev.filter((x) => x.grade !== e.grade))}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full flex-1 rounded-xl"
+                        onClick={() => setPendingEntries([])}
+                        disabled={isSaving || isDateLoading || pendingEntries.length === 0}
+                      >
+                        Clear list
+                      </Button>
+                      <Button
+                        type="button"
+                        className="w-full flex-1 rounded-xl"
+                        onClick={savePendingAll}
+                        disabled={isSaving || isDateLoading || pendingEntries.length === 0}
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="size-4 animate-spin" />
+                            Saving
+                          </>
+                        ) : (
+                          <>
+                            <Save className="size-4" />
+                            Save all ({pendingEntries.length})
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Separator />
+
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-muted-foreground">
-                  Tip: Saving on the same date will update the existing record.
+                  Save Attendance is disabled if you added another grade (pending list).
                 </div>
-                <Button className="rounded-xl" onClick={handleSave} disabled={isSaving || isDateLoading}>
+                <Button
+                  className="w-full rounded-xl sm:w-auto"
+                  onClick={handleSave}
+                  disabled={isSaving || isDateLoading || isBatch}
+                >
                   {isSaving ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
@@ -891,9 +1036,15 @@ export function UserAttendance() {
                                 </span>
                               </TableCell>
                               <TableCell className="text-sm text-muted-foreground align-top">
-                                <div className="w-full whitespace-normal break-words line-clamp-3">
-                                  {r.notes || "—"}
-                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-xl h-8 px-2"
+                                  onClick={() => setViewNotesTarget(r)}
+                                >
+                                  <MessageSquare className="mr-1 size-3.5" />
+                                  View Notes
+                                </Button>
                               </TableCell>
                               <TableCell className="text-right">
                                 <Button

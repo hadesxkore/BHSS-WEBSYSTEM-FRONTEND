@@ -31,6 +31,7 @@ type AuthState = {
     email: string
     name: string
     role: string
+    hlaRoleType?: string
     school?: string
     municipality?: string
     avatarUrl?: string
@@ -42,6 +43,7 @@ type UserProfile = {
   email: string
   username: string
   name: string
+  hlaRoleType?: string
   school?: string
   municipality?: string
   province?: string
@@ -132,6 +134,7 @@ export function UserAccount() {
       email: auth.user.email,
       username: auth.user.username,
       name: auth.user.name,
+      hlaRoleType: (auth.user as any)?.hlaRoleType,
       school: auth.user.school,
       municipality: auth.user.municipality,
       avatarUrl: (auth.user as any)?.avatarUrl,
@@ -152,6 +155,7 @@ export function UserAccount() {
           email: u.email ?? seed.email,
           username: u.username ?? seed.username,
           name: (u.name ?? u.hlaManagerName ?? seed.name) as string,
+          hlaRoleType: u.hlaRoleType ?? seed.hlaRoleType,
           school: u.school ?? seed.school,
           municipality: u.municipality ?? seed.municipality,
           province: u.province,
@@ -174,6 +178,7 @@ export function UserAccount() {
                 email: next.email,
                 username: next.username,
                 name: next.name,
+                hlaRoleType: (next as any)?.hlaRoleType ?? (parsed.user as any)?.hlaRoleType,
                 school: next.school,
                 municipality: next.municipality,
                 avatarUrl: next.avatarUrl,
@@ -469,7 +474,16 @@ export function UserAccount() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="acc-name">HLA Manager</Label>
+                  <Label htmlFor="acc-hla-role">HLA Role Type</Label>
+                  <Input
+                    id="acc-hla-role"
+                    value={draft?.hlaRoleType || profile?.hlaRoleType || (auth?.user as any)?.hlaRoleType || ""}
+                    disabled
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="acc-name">Name</Label>
                   <Input
                     id="acc-name"
                     value={draft?.name || ""}

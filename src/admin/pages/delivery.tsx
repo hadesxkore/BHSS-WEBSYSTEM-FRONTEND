@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { format } from "date-fns"
 import type { DateRange } from "react-day-picker"
 import { toast } from "sonner"
@@ -60,6 +60,128 @@ import {
 } from "@/components/ui/table"
 
 type DeliveryStatus = "Pending" | "Delivered" | "Delayed" | "Cancelled"
+
+// Simple image cache to prevent re-fetching
+type ImageCacheEntry = {
+  blobUrl: string
+  lastUsed: number
+}
+
+const imageCache = new Map<string, ImageCacheEntry>()
+const MAX_CACHE_SIZE = 20
+const CACHE_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
+
+function getCachedImage(originalUrl: string): string | null {
+  const entry = imageCache.get(originalUrl)
+  if (!entry) return null
+  
+  // Check if cache expired
+  if (Date.now() - entry.lastUsed > CACHE_EXPIRY_MS) {
+    URL.revokeObjectURL(entry.blobUrl)
+    imageCache.delete(originalUrl)
+    return null
+  }
+  
+  entry.lastUsed = Date.now()
+  return entry.blobUrl
+}
+
+function setCachedImage(originalUrl: string, blobUrl: string): void {
+  // Clean up old entries if cache is full
+  if (imageCache.size >= MAX_CACHE_SIZE) {
+    const oldest = Array.from(imageCache.entries()).sort((a, b) => a[1].lastUsed - b[1].lastUsed)[0]
+    if (oldest) {
+      URL.revokeObjectURL(oldest[1].blobUrl)
+      imageCache.delete(oldest[0])
+    }
+  }
+  
+  imageCache.set(originalUrl, { blobUrl, lastUsed: Date.now() })
+}
+
+// Optimized Image Component with caching, lazy loading, and skeleton
+const OptimizedImage = ({
+  src,
+  alt,
+  className,
+  containerClassName,
+  onLoad,
+  onError,
+}: {
+  src: string
+  alt: string
+  className?: string
+  containerClassName?: string
+  onLoad?: () => void
+  onError?: () => void
+}) => {
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [hasError, setHasError] = useState(false)
+  const [cachedSrc, setCachedSrc] = useState<string>(src)
+  const imgRef = useRef<HTMLImageElement>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const fullUrl = src.startsWith('http') ? src : `${getApiBaseUrl()}${src}`
+    
+    // Check cache first
+    const cached = getCachedImage(fullUrl)
+    if (cached) {
+      setCachedSrc(cached)
+      return
+    }
+
+    // Fetch and cache the image
+    fetch(fullUrl, {
+      headers: { Authorization: `Bearer ${getAuthToken() || ''}` },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch')
+        return res.blob()
+      })
+      .then(blob => {
+        if (cancelled) return
+        const blobUrl = URL.createObjectURL(blob)
+        setCachedImage(fullUrl, blobUrl)
+        setCachedSrc(blobUrl)
+      })
+      .catch(() => {
+        if (!cancelled) setHasError(true)
+      })
+
+    return () => { cancelled = true }
+  }, [src])
+
+  return (
+    <div className={`relative ${containerClassName || ''}`}>
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 animate-pulse rounded-xl bg-slate-200" />
+      )}
+      {hasError ? (
+        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-slate-100">
+          <ImageIcon className="size-6 text-slate-400" />
+        </div>
+      ) : (
+        <img
+          ref={imgRef}
+          src={cachedSrc}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className || ''}`}
+          onLoad={() => {
+            setIsLoaded(true)
+            onLoad?.()
+          }}
+          onError={() => {
+            setHasError(true)
+            onError?.()
+          }}
+        />
+      )}
+    </div>
+  )
+}
 
 type AdminDeliveryRow = {
   id: string
@@ -936,9 +1058,10 @@ export function AdminDelivery() {
                     className="overflow-hidden rounded-xl border bg-muted/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     onClick={() => setImagePreviewIndex(idx)}
                   >
-                    <img
-                      src={`${getApiBaseUrl()}${img.url}`}
+                    <OptimizedImage
+                      src={img.url}
                       alt={img.filename}
+                      containerClassName="h-32 w-full"
                       className="h-32 w-full object-cover"
                     />
                   </button>
@@ -997,10 +1120,11 @@ export function AdminDelivery() {
 
             return (
               <div className="grid gap-3">
-                <div className="relative rounded-xl border bg-black/90 overflow-hidden flex items-center justify-center">
-                  <img
-                    src={`${getApiBaseUrl()}${img.url}`}
+                <div className="relative rounded-xl border bg-black/90 overflow-hidden flex items-center justify-center min-h-[200px]">
+                  <OptimizedImage
+                    src={img.url}
                     alt={img.filename}
+                    containerClassName="w-full"
                     className="max-h-[58vh] sm:max-h-[62vh] w-auto object-contain"
                   />
                 </div>
