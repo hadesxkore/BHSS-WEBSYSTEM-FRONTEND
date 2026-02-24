@@ -60,6 +60,26 @@ import {
 
 type DeliveryStatus = "Pending" | "Delivered" | "Delayed" | "Cancelled"
 
+const CATEGORY_BADGE_CLASSES = [
+  "bg-sky-50 text-sky-800 border-sky-200",
+  "bg-emerald-50 text-emerald-800 border-emerald-200",
+  "bg-violet-50 text-violet-800 border-violet-200",
+  "bg-amber-50 text-amber-900 border-amber-200",
+  "bg-rose-50 text-rose-900 border-rose-200",
+  "bg-indigo-50 text-indigo-900 border-indigo-200",
+  "bg-teal-50 text-teal-900 border-teal-200",
+  "bg-fuchsia-50 text-fuchsia-900 border-fuchsia-200",
+] as const
+
+function categoryBadgeClass(value: string) {
+  const v = String(value || "").trim().toLowerCase()
+  let h = 0
+  for (let i = 0; i < v.length; i += 1) {
+    h = (h * 31 + v.charCodeAt(i)) >>> 0
+  }
+  return CATEGORY_BADGE_CLASSES[h % CATEGORY_BADGE_CLASSES.length]
+}
+
 // Optimized Image Component with caching, lazy loading, and skeleton
 const OptimizedImage = ({
   src,
@@ -477,6 +497,7 @@ export function AdminDelivery() {
   const categoryOptions = useMemo(() => {
     const map = new Map<string, string>()
     for (const r of rows) {
+      if (selectedMunicipality !== "all" && r.municipality !== selectedMunicipality) continue
       if (selectedSchool !== "all" && r.school !== selectedSchool) continue
       const key = String(r.categoryKey || "").trim() || String(r.categoryLabel || "").trim()
       const label = String(r.categoryLabel || "").trim() || key
@@ -673,7 +694,7 @@ export function AdminDelivery() {
                 >
                   <SelectValue placeholder="Materials/Goods" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent key={`${selectedMunicipality}-${selectedSchool}`}>
                   <SelectItem value="all">All Materials/Goods</SelectItem>
                   {categoryOptions.map((c) => (
                     <SelectItem key={c.value} value={c.value}>
@@ -763,7 +784,15 @@ export function AdminDelivery() {
                         <TableCell className="whitespace-nowrap">{r.municipality}</TableCell>
                         <TableCell className="max-w-[260px] truncate">{r.school}</TableCell>
                         <TableCell className="max-w-[220px] truncate">{r.hlaManagerName || ""}</TableCell>
-                        <TableCell className="whitespace-nowrap">{r.categoryLabel}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <Badge
+                            variant="outline"
+                            className={`rounded-xl border ${categoryBadgeClass(r.categoryKey || r.categoryLabel)}`}
+                            title={r.categoryLabel}
+                          >
+                            {r.categoryLabel}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <Badge className={`rounded-xl ${meta.badgeClass}`}>
                             <StatusIcon className="mr-1 size-3.5" />

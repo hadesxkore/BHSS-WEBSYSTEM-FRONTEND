@@ -44,6 +44,20 @@ type DeliverySavedPayload = {
   }
 }
 
+type FileSubmissionUploadedPayload = {
+  submission?: {
+    userId?: string
+    folder?: string
+    filesCount?: number
+  }
+  user?: {
+    name?: string
+    username?: string
+    school?: string
+    municipality?: string
+  }
+}
+
 export function AdminGlobalNotifications() {
   const lastNotificationIdRef = useRef<string>("")
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -84,6 +98,48 @@ export function AdminGlobalNotifications() {
 
       const title = "New attendance saved"
       const body = `${school || "(school)"} • ${grade || "(grade)"} • ${dateKey || "(date)"}`
+      const timeText = formatClockTimeNow()
+      const bodyWithTime = timeText ? `${body} • ${timeText}` : body
+
+      notify({
+        variant: "success",
+        title,
+        message: body,
+        id: notificationId,
+      })
+
+      playSound()
+
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        try {
+          const n = new Notification(title, {
+            body: bodyWithTime,
+            silent: false,
+            tag: notificationId,
+            icon: "/images/bhsslogo.png",
+            badge: "/images/bhsslogo.png",
+          })
+          setTimeout(() => n.close(), 5000)
+        } catch {
+          // ignore
+        }
+      }
+    })
+
+    socket.on("file-submission:uploaded", (payload: FileSubmissionUploadedPayload) => {
+      window.dispatchEvent(new CustomEvent("file-submission:uploaded", { detail: payload }))
+
+      const folder = String(payload?.submission?.folder || "")
+      const school = String(payload?.user?.school || "")
+      const name = String(payload?.user?.name || payload?.user?.username || "")
+      const filesCount = Number(payload?.submission?.filesCount || 0)
+
+      const notificationId = `file-submission-${folder}-${school}-${name}-${filesCount}`
+      if (notificationId && lastNotificationIdRef.current === notificationId) return
+      lastNotificationIdRef.current = notificationId
+
+      const title = "New file submission uploaded"
+      const body = `${school || "(school)"} • ${folder || "(folder)"} • ${filesCount || 1} file${filesCount === 1 ? "" : "s"}`
       const timeText = formatClockTimeNow()
       const bodyWithTime = timeText ? `${body} • ${timeText}` : body
 

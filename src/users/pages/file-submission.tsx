@@ -5,7 +5,7 @@ import {
   FolderOpen,
   Upload,
   X,
-  File,
+  File as FileIcon,
   Image,
   FileSpreadsheet,
   FileCode,
@@ -19,6 +19,7 @@ import {
   CalendarIcon,
 } from "lucide-react"
 import { toast } from "sonner"
+import imageCompression from "browser-image-compression"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
@@ -132,15 +133,18 @@ function formatFileSize(bytes: number): string {
 function getFileIcon(type: string) {
   if (type.startsWith("image/")) return Image
   if (type.includes("spreadsheet") || type.includes("excel")) return FileSpreadsheet
-  if (type.includes("pdf")) return File
+  if (type.includes("pdf")) return FileIcon
   if (type.includes("code") || type.includes("json")) return FileCode
-  return File
+  return FileIcon
 }
 
 export function FileSubmission() {
   const auth = useMemo(() => getAuth(), [])
   const userHlaRoleType = auth?.user?.hlaRoleType || ""
   const isCoordinator = userHlaRoleType === "HLA Coordinator"
+
+  const [isCompressing, setIsCompressing] = useState(false)
+  const [compressText, setCompressText] = useState("")
 
   const [currentFolder, setCurrentFolder] = useState<FolderType | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -285,16 +289,69 @@ export function FileSubmission() {
     return counts
   }, [uploadedFiles])
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || [])
+    if (!selectedFiles.length) return
+
+    const MAX_FILE_BYTES = 10 * 1024 * 1024
+    const MAX_IMAGE_BYTES = 2 * 1024 * 1024
+
     const validFiles = selectedFiles.filter((file) => {
-      if (file.size > 10 * 1024 * 1024) {
+      if (file.size > MAX_FILE_BYTES) {
         toast.error(`${file.name} is too large (max 10MB)`)
         return false
       }
       return true
     })
-    setFiles((prev) => [...prev, ...validFiles])
+
+    const imageFiles = validFiles.filter((f) => f.type.startsWith("image/"))
+    const otherFiles = validFiles.filter((f) => !f.type.startsWith("image/"))
+
+    const compressOne = async (file: File, index: number, total: number): Promise<File> => {
+      if (file.size <= MAX_IMAGE_BYTES) return file
+
+      setIsCompressing(true)
+      setCompressText(`Compressing image ${index + 1} of ${total}…`)
+
+      const options = {
+        maxSizeMB: 2,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        initialQuality: 0.92,
+        fileType: "image/jpeg",
+        onProgress: (p: number) => {
+          setCompressText(`Compressing image ${index + 1} of ${total}… ${Math.round(p)}%`)
+        },
+      } satisfies Parameters<typeof imageCompression>[1]
+
+      const compressed = await imageCompression(file, options)
+      if (compressed.size > MAX_IMAGE_BYTES) {
+        throw new Error("Image is too large. Please select a smaller image.")
+      }
+
+      const name = file.name.replace(/\.[^.]+$/, "") || "image"
+      return new File([compressed], `${name}.jpg`, { type: "image/jpeg" })
+    }
+
+    try {
+      const processedImages: File[] = []
+      for (let i = 0; i < imageFiles.length; i += 1) {
+        const f = imageFiles[i]
+        processedImages.push(await compressOne(f, i, imageFiles.length))
+      }
+
+      setFiles((prev) => [...prev, ...otherFiles, ...processedImages])
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to process image")
+    } finally {
+      setIsCompressing(false)
+      setCompressText("")
+      try {
+        e.target.value = ""
+      } catch {
+        // ignore
+      }
+    }
   }
 
   const removeFile = (index: number) => {
@@ -935,6 +992,20 @@ export function FileSubmission() {
               <Trash2 className="mr-2 size-4" />
               Delete
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isCompressing} onOpenChange={() => {}}>
+        <DialogContent className="w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl">
+          <div className="flex flex-col items-center text-center">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-black text-white">
+              <Loader2 className="size-6 animate-spin" />
+            </div>
+            <div className="mt-4 text-base font-semibold">Optimizing image</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              {compressText || "Compressing…"}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

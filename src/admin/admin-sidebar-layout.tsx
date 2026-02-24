@@ -54,6 +54,7 @@ import { AdminDelivery } from "./pages/delivery"
 import { AdminDeliverySummary } from "./pages/delivery-summary"
 import { AdminEventCalendar } from "./pages/event-calendar"
 import { AdminEventAnnouncements } from "./pages/event-announcements"
+import { AdminFileSubmissions } from "./pages/file-submissions"
 import { AdminGlobalNotifications } from "./components/admin-global-notifications"
 
 type AdminSidebarLayoutProps = {
@@ -162,6 +163,11 @@ const menuItems: MenuItem[] = [
     title: "Attendance",
     icon: ClipboardCheck,
     component: Attendance,
+  },
+  {
+    title: "File Submissions",
+    icon: FileText,
+    component: AdminFileSubmissions,
   },
   {
     title: "Users",
