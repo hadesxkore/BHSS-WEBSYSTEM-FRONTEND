@@ -60,44 +60,6 @@ import {
 
 type DeliveryStatus = "Pending" | "Delivered" | "Delayed" | "Cancelled"
 
-// Simple image cache to prevent re-fetching
-type ImageCacheEntry = {
-  blobUrl: string
-  lastUsed: number
-}
-
-const imageCache = new Map<string, ImageCacheEntry>()
-const MAX_CACHE_SIZE = 20
-const CACHE_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
-
-function getCachedImage(originalUrl: string): string | null {
-  const entry = imageCache.get(originalUrl)
-  if (!entry) return null
-  
-  // Check if cache expired
-  if (Date.now() - entry.lastUsed > CACHE_EXPIRY_MS) {
-    URL.revokeObjectURL(entry.blobUrl)
-    imageCache.delete(originalUrl)
-    return null
-  }
-  
-  entry.lastUsed = Date.now()
-  return entry.blobUrl
-}
-
-function setCachedImage(originalUrl: string, blobUrl: string): void {
-  // Clean up old entries if cache is full
-  if (imageCache.size >= MAX_CACHE_SIZE) {
-    const oldest = Array.from(imageCache.entries()).sort((a, b) => a[1].lastUsed - b[1].lastUsed)[0]
-    if (oldest) {
-      URL.revokeObjectURL(oldest[1].blobUrl)
-      imageCache.delete(oldest[0])
-    }
-  }
-  
-  imageCache.set(originalUrl, { blobUrl, lastUsed: Date.now() })
-}
-
 // Optimized Image Component with caching, lazy loading, and skeleton
 const OptimizedImage = ({
   src,
@@ -120,41 +82,11 @@ const OptimizedImage = ({
   const imgRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
-    let cancelled = false
     const fullUrl = src.startsWith('http') ? src : `${getApiBaseUrl()}${src}`
-
-    // Check cache first (avoid skeleton flash when reopening)
-    const cached = getCachedImage(fullUrl)
-    if (cached) {
-      setHasError(false)
-      setCachedSrc(cached)
-      setIsLoaded(true)
-      return
-    }
 
     setIsLoaded(false)
     setHasError(false)
-    setCachedSrc("")
-
-    // Fetch and cache the image
-    fetch(fullUrl, {
-      headers: { Authorization: `Bearer ${getAuthToken() || ''}` },
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch')
-        return res.blob()
-      })
-      .then(blob => {
-        if (cancelled) return
-        const blobUrl = URL.createObjectURL(blob)
-        setCachedImage(fullUrl, blobUrl)
-        setCachedSrc(blobUrl)
-      })
-      .catch(() => {
-        if (!cancelled) setHasError(true)
-      })
-
-    return () => { cancelled = true }
+    setCachedSrc(fullUrl)
   }, [src])
 
   return (
