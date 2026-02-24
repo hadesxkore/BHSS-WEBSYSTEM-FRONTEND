@@ -3,11 +3,13 @@ import type { ComponentType } from "react"
 import { format, parseISO } from "date-fns"
 import { motion } from "motion/react"
 import { toast } from "sonner"
+import imageCompression from "browser-image-compression"
 import {
   CalendarDays,
   CheckCircle2,
   Clock,
   ImagePlus,
+  Loader2,
   Info,
   Images,
   Trash2,
@@ -16,6 +18,7 @@ import {
   Plus,
   TriangleAlert,
   Truck,
+  X,
   XCircle,
 } from "lucide-react"
 
@@ -58,6 +61,208 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+
+// Simple image cache to prevent re-fetching when reopening the modal
+type ImageCacheEntry = {
+  blobUrl: string
+  lastUsed: number
+}
+
+const imageCache = new Map<string, ImageCacheEntry>()
+const MAX_CACHE_SIZE = 20
+const CACHE_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
+
+let activeImageFetches = 0
+const MAX_CONCURRENT_IMAGE_FETCHES = 3
+const imageFetchQueue: Array<() => void> = []
+
+function limitedFetch(input: RequestInfo | URL, init?: RequestInit) {
+  return new Promise<Response>((resolve, reject) => {
+    const run = () => {
+      activeImageFetches += 1
+      fetch(input, init)
+        .then(resolve)
+        .catch(reject)
+        .finally(() => {
+          activeImageFetches = Math.max(0, activeImageFetches - 1)
+          const next = imageFetchQueue.shift()
+          if (next) next()
+        })
+    }
+
+    if (activeImageFetches < MAX_CONCURRENT_IMAGE_FETCHES) {
+      run()
+      return
+    }
+
+    imageFetchQueue.push(run)
+  })
+}
+
+function getCachedImage(originalUrl: string): string | null {
+  const entry = imageCache.get(originalUrl)
+  if (!entry) return null
+
+  if (Date.now() - entry.lastUsed > CACHE_EXPIRY_MS) {
+    URL.revokeObjectURL(entry.blobUrl)
+    imageCache.delete(originalUrl)
+    return null
+  }
+
+  entry.lastUsed = Date.now()
+  return entry.blobUrl
+}
+
+function setCachedImage(originalUrl: string, blobUrl: string): void {
+  if (imageCache.size >= MAX_CACHE_SIZE) {
+    const oldest = Array.from(imageCache.entries()).sort((a, b) => a[1].lastUsed - b[1].lastUsed)[0]
+    if (oldest) {
+      URL.revokeObjectURL(oldest[1].blobUrl)
+      imageCache.delete(oldest[0])
+    }
+  }
+
+  imageCache.set(originalUrl, { blobUrl, lastUsed: Date.now() })
+}
+
+const OptimizedImage = ({
+  src,
+  alt,
+  className,
+  containerClassName,
+}: {
+  src: string
+  alt: string
+  className?: string
+  containerClassName?: string
+}) => {
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [hasError, setHasError] = useState(false)
+  const [cachedSrc, setCachedSrc] = useState<string>("")
+
+  useEffect(() => {
+    let cancelled = false
+
+    // Local preview blobs should render directly
+    if (src.startsWith("blob:")) {
+      setHasError(false)
+      setCachedSrc(src)
+      setIsLoaded(true)
+      return
+    }
+
+    const fullUrl = src.startsWith("http") ? src : `${getApiBaseUrl()}${src}`
+
+    const cached = getCachedImage(fullUrl)
+    if (cached) {
+      setHasError(false)
+      setCachedSrc(cached)
+      setIsLoaded(true)
+      return
+    }
+
+    setIsLoaded(false)
+    setHasError(false)
+    setCachedSrc("")
+
+    limitedFetch(fullUrl, {
+      headers: { Authorization: `Bearer ${getAuthToken() || ""}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch")
+        return res.blob()
+      })
+      .then((blob) => {
+        if (cancelled) return
+        const blobUrl = URL.createObjectURL(blob)
+        setCachedImage(fullUrl, blobUrl)
+        setCachedSrc(blobUrl)
+      })
+      .catch(() => {
+        if (!cancelled) setHasError(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [src])
+
+  return (
+    <div className={`relative ${containerClassName || ""}`}>
+      {!isLoaded && !hasError && <div className="absolute inset-0 animate-pulse rounded-xl bg-slate-200" />}
+      {hasError ? (
+        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-slate-100">
+          <Images className="size-6 text-slate-400" />
+        </div>
+      ) : cachedSrc ? (
+        <img
+          src={cachedSrc}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          className={`transition-opacity duration-300 ${isLoaded ? "opacity-100" : "opacity-0"} ${
+            className || ""
+          }`}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+const LazyOptimizedImage = ({
+  src,
+  alt,
+  className,
+  containerClassName,
+}: {
+  src: string
+  alt: string
+  className?: string
+  containerClassName?: string
+}) => {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [inView, setInView] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if (inView) return
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setInView(true)
+        }
+      },
+      { rootMargin: "200px" }
+    )
+    obs.observe(el)
+    return () => {
+      try {
+        obs.disconnect()
+      } catch {
+        // ignore
+      }
+    }
+  }, [inView])
+
+  return (
+    <div ref={ref} className={`relative ${containerClassName || ""}`}>
+      {inView ? (
+        <OptimizedImage
+          src={src}
+          alt={alt}
+          className={className}
+          containerClassName={""}
+        />
+      ) : (
+        <div className="absolute inset-0 animate-pulse rounded-xl bg-slate-200" />
+      )}
+    </div>
+  )
+}
 
 type DeliveryStatus =
   | "Pending"
@@ -133,6 +338,7 @@ type DeliveryRecordDto = {
   concerns?: string[]
   remarks?: string
   images?: DeliveryImageDto[]
+  hlaManagerName?: string
 }
 
 function getApiBaseUrl() {
@@ -150,6 +356,15 @@ function getAuthToken(): string | null {
   } catch {
     return null
   }
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B"
+  const units = ["B", "KB", "MB", "GB"]
+  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)))
+  const v = bytes / Math.pow(1024, i)
+  const d = i === 0 ? 0 : v >= 100 ? 0 : v >= 10 ? 1 : 2
+  return `${v.toFixed(d)} ${units[i]}`
 }
 
 async function deleteItemFromBackend(dateKey: string, categoryKey: DeliveryCategoryKey) {
@@ -306,6 +521,7 @@ export function UserDelivery() {
     Record<string, Record<DeliveryCategoryKey, DeliveryItem>>
   >(initialRecords)
   const [customConcern, setCustomConcern] = useState<Record<string, string>>({})
+  const [customConcernOpen, setCustomConcernOpen] = useState<Record<string, boolean>>({})
 
   const [activeTab, setActiveTab] = useState<"upload" | "history">("upload")
 
@@ -338,6 +554,7 @@ export function UserDelivery() {
   const [viewDetailsTarget, setViewDetailsTarget] = useState<{
     dateKey: string
     categoryKey: DeliveryCategoryKey
+    hlaManagerName?: string
   } | null>(null)
 
   const [detailsTab, setDetailsTab] = useState<"details" | "concerns">("details")
@@ -356,6 +573,10 @@ export function UserDelivery() {
   } | null>(null)
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const customConcernInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  const [isCompressing, setIsCompressing] = useState(false)
+  const [compressText, setCompressText] = useState("")
 
   const [historyRecords, setHistoryRecords] = useState<DeliveryRecordDto[]>([])
   const [isHistoryLoading, setIsHistoryLoading] = useState(false)
@@ -395,6 +616,7 @@ export function UserDelivery() {
     setWizardOpen(false)
     setWizardStep(1)
     setWizardIsSaving(false)
+    setCustomConcernOpen({})
   }
 
   const ensureDateRecord = (dateKey: string) => {
@@ -555,6 +777,47 @@ export function UserDelivery() {
       return
     }
 
+    const normalized = value
+      .toLowerCase()
+      .replace(/[\s._-]+/g, " ")
+      .replace(/[^a-z0-9 ]/g, "")
+      .trim()
+
+    const isNoConcerns =
+      normalized === "no concern" ||
+      normalized === "no concerns" ||
+      normalized === "no" ||
+      normalized === "none" ||
+      normalized === "n a" ||
+      normalized === "na" ||
+      normalized === "n/a" ||
+      normalized === "no cencern" ||
+      normalized === "no cencerns" ||
+      normalized === "no cencer" ||
+      normalized === "no cencers" ||
+      normalized === "no concernss"
+
+    if (isNoConcerns) {
+      setRecordsByDate((prev) => {
+        const day = prev[dateKey]
+        const item = day?.[categoryKey]
+        if (!day || !item) return prev
+        return {
+          ...prev,
+          [dateKey]: {
+            ...day,
+            [categoryKey]: {
+              ...item,
+              concerns: [],
+            },
+          },
+        }
+      })
+      setCustomConcern((prev) => ({ ...prev, [key]: "" }))
+      toast.success("Saved as no concerns.")
+      return
+    }
+
     setRecordsByDate((prev) => {
       const day = prev[dateKey]
       const item = day?.[categoryKey]
@@ -574,30 +837,73 @@ export function UserDelivery() {
     toast.success("Concern added.")
   }
 
-  const handleFilesSelected = (
+  const handleFilesSelected = async (
     dateKey: string,
     categoryKey: DeliveryCategoryKey,
     files: FileList | null
   ) => {
     if (!files || files.length === 0) return
-    const next = Array.from(files)
-      .filter((f) => f.type.startsWith("image/"))
-      .map((file) => ({ file, url: URL.createObjectURL(file) }))
-    setRecordsByDate((prev) => {
-      const day = prev[dateKey]
-      const item = day?.[categoryKey]
-      if (!day || !item) return prev
-      return {
-        ...prev,
-        [dateKey]: {
-          ...day,
-          [categoryKey]: {
-            ...item,
-            images: [...item.images, ...next],
-          },
+
+    const MAX_BYTES = 2 * 1024 * 1024
+
+    const inputFiles = Array.from(files).filter((f) => f.type.startsWith("image/"))
+    if (!inputFiles.length) return
+
+    const compressOne = async (file: File, index: number, total: number): Promise<File> => {
+      if (file.size <= MAX_BYTES) return file
+
+      setIsCompressing(true)
+      setCompressText(`Compressing image ${index + 1} of ${total}…`)
+
+      const options = {
+        maxSizeMB: 2,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        initialQuality: 0.92,
+        fileType: "image/jpeg",
+        onProgress: (p: number) => {
+          setCompressText(`Compressing image ${index + 1} of ${total}… ${Math.round(p)}%`)
         },
+      } satisfies Parameters<typeof imageCompression>[1]
+
+      const compressed = await imageCompression(file, options)
+      if (compressed.size > MAX_BYTES) {
+        throw new Error("Image is too large. Please select a smaller image.")
       }
-    })
+
+      const name = file.name.replace(/\.[^.]+$/, "") || "image"
+      return new File([compressed], `${name}.jpg`, { type: "image/jpeg" })
+    }
+
+    try {
+      const out: Array<{ file: File; url: string }> = []
+      for (let i = 0; i < inputFiles.length; i += 1) {
+        const f = inputFiles[i]
+        const processed = await compressOne(f, i, inputFiles.length)
+        out.push({ file: processed, url: URL.createObjectURL(processed) })
+      }
+
+      setRecordsByDate((prev) => {
+        const day = prev[dateKey]
+        const item = day?.[categoryKey]
+        if (!day || !item) return prev
+        return {
+          ...prev,
+          [dateKey]: {
+            ...day,
+            [categoryKey]: {
+              ...item,
+              images: [...item.images, ...out],
+            },
+          },
+        }
+      })
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to process image")
+    } finally {
+      setIsCompressing(false)
+      setCompressText("")
+    }
   }
 
   const handleRemoveImage = (dateKey: string, categoryKey: DeliveryCategoryKey, index: number) => {
@@ -638,6 +944,7 @@ export function UserDelivery() {
       imagesCount: Array.isArray(r.images) ? r.images.length : 0,
       concerns: Array.isArray(r.concerns) ? r.concerns : [],
       remarks: r.remarks || "",
+      hlaManagerName: String((r as any)?.hlaManagerName || ""),
     }))
   }, [historyRecords])
 
@@ -970,9 +1277,9 @@ export function UserDelivery() {
                                         <button
                                           key={opt.value}
                                           type="button"
-                                          className={`rounded-2xl border p-3 text-left transition-colors hover:bg-muted/20 ${
+                                          className={`group rounded-2xl border p-3 text-left transition-all duration-200 hover:bg-muted/20 ${
                                             isActive
-                                              ? "border-black/15 bg-muted/20"
+                                              ? "border-black bg-black text-white shadow-sm"
                                               : "border-black/5 bg-white"
                                           }`}
                                           onClick={() =>
@@ -985,7 +1292,9 @@ export function UserDelivery() {
                                         >
                                           <div className="flex items-center gap-2">
                                             <div
-                                              className={`grid size-9 place-items-center rounded-xl ${opt.badgeClass}`}
+                                              className={`grid size-9 place-items-center rounded-xl transition-colors ${
+                                                isActive ? "bg-white/10 text-white" : opt.badgeClass
+                                              }`}
                                             >
                                               <Icon className="size-4" />
                                             </div>
@@ -993,7 +1302,11 @@ export function UserDelivery() {
                                               <div className="text-sm font-semibold leading-tight">
                                                 {opt.label}
                                               </div>
-                                              <div className="text-xs text-muted-foreground">
+                                              <div
+                                                className={`text-xs ${
+                                                  isActive ? "text-white/80" : "text-muted-foreground"
+                                                }`}
+                                              >
                                                 Tap to select
                                               </div>
                                             </div>
@@ -1026,10 +1339,72 @@ export function UserDelivery() {
                                   <div className="grid gap-2">
                                     <div className="flex items-center justify-between">
                                       <Label className="text-xs text-muted-foreground">Concerns (optional)</Label>
-                                      <Badge className="rounded-xl bg-muted text-foreground border">
-                                        {item.concerns.length} selected
-                                      </Badge>
+                                      <div className="flex items-center gap-2">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          className="rounded-xl h-7 px-2"
+                                          onClick={() => {
+                                            setCustomConcernOpen((prev) => ({ ...prev, [customKey]: true }))
+                                            setCustomConcern((prev) => ({ ...prev, [customKey]: prev[customKey] || "" }))
+                                            window.setTimeout(() => {
+                                              customConcernInputRefs.current[customKey]?.focus()
+                                            }, 0)
+                                          }}
+                                        >
+                                          <Plus className="size-4" />
+                                          Add more
+                                        </Button>
+                                        <Badge className="rounded-xl bg-muted text-foreground border">
+                                          {item.concerns.length} selected
+                                        </Badge>
+                                      </div>
                                     </div>
+
+                                    {item.concerns.length ? (
+                                      <div className="flex flex-wrap gap-2">
+                                        {item.concerns.map((c) => (
+                                          <span
+                                            key={c}
+                                            className="inline-flex items-center gap-1 rounded-xl border bg-background px-2 py-1 text-xs"
+                                          >
+                                            <span className="max-w-[220px] truncate">{c}</span>
+                                            <button
+                                              type="button"
+                                              className="grid size-5 place-items-center rounded-lg hover:bg-muted"
+                                              onClick={() =>
+                                                updateDeliveryItem(selectedDateKey, wizardCategory, {
+                                                  concerns: item.concerns.filter((x) => x !== c),
+                                                })
+                                              }
+                                              aria-label={`Remove concern ${c}`}
+                                            >
+                                              <X className="size-3" />
+                                            </button>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : null}
+
+                                    <div className="flex flex-wrap gap-2">
+                                      <button
+                                        type="button"
+                                        className={`rounded-xl border px-3 py-1 text-xs transition-colors ${
+                                          item.concerns.length === 0
+                                            ? "bg-primary text-primary-foreground border-primary"
+                                            : "bg-background hover:bg-muted"
+                                        }`}
+                                        onClick={() =>
+                                          updateDeliveryItem(selectedDateKey, wizardCategory, {
+                                            concerns: [],
+                                          })
+                                        }
+                                      >
+                                        No concerns
+                                      </button>
+                                    </div>
+
                                     <div className="flex flex-wrap gap-2">
                                       {PRESET_CONCERNS.map((c) => {
                                         const active = item.concerns.includes(c)
@@ -1053,30 +1428,35 @@ export function UserDelivery() {
                                         )
                                       })}
                                     </div>
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                                      <Input
-                                        value={customConcern[customKey] || ""}
-                                        onChange={(e) =>
-                                          setCustomConcern((prev) => ({
-                                            ...prev,
-                                            [customKey]: e.target.value,
-                                          }))
-                                        }
-                                        placeholder="Add custom concern"
-                                        className="rounded-xl"
-                                      />
-                                      <Button
-                                        type="button"
-                                        variant="default"
-                                        className="rounded-xl bg-black text-white hover:bg-black/90"
-                                        onClick={() =>
-                                          handleAddCustomConcern(selectedDateKey, wizardCategory)
-                                        }
-                                      >
-                                        <Plus className="size-4" />
-                                        Add
-                                      </Button>
-                                    </div>
+                                    {customConcernOpen[customKey] ? (
+                                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                        <Input
+                                          ref={(el) => {
+                                            customConcernInputRefs.current[customKey] = el
+                                          }}
+                                          value={customConcern[customKey] || ""}
+                                          onChange={(e) =>
+                                            setCustomConcern((prev) => ({
+                                              ...prev,
+                                              [customKey]: e.target.value,
+                                            }))
+                                          }
+                                          placeholder="Add custom concern"
+                                          className="rounded-xl"
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="default"
+                                          className="rounded-xl bg-black text-white hover:bg-black/90"
+                                          onClick={() =>
+                                            handleAddCustomConcern(selectedDateKey, wizardCategory)
+                                          }
+                                        >
+                                          <Plus className="size-4" />
+                                          Add
+                                        </Button>
+                                      </div>
+                                    ) : null}
                                   </div>
 
                                   <div className="grid gap-2">
@@ -1110,7 +1490,7 @@ export function UserDelivery() {
                                       multiple
                                       className="hidden"
                                       onChange={(e) => {
-                                        handleFilesSelected(
+                                        void handleFilesSelected(
                                           selectedDateKey,
                                           wizardCategory,
                                           e.target.files
@@ -1148,14 +1528,15 @@ export function UserDelivery() {
                                             key={`${selectedDateKey}-${wizardCategory}-img-${imgIndex}`}
                                             className="group relative overflow-hidden rounded-xl border bg-muted/20"
                                           >
-                                            <img
+                                            <OptimizedImage
                                               src={img.url}
                                               alt={img.file?.name ?? "Uploaded image"}
+                                              containerClassName="h-24 w-full"
                                               className="h-24 w-full object-cover"
                                             />
                                             <button
                                               type="button"
-                                              className="absolute right-2 top-2 rounded-lg bg-white/90 px-2 py-1 text-xs shadow-sm opacity-0 transition-opacity group-hover:opacity-100"
+                                              className="absolute right-2 top-2 rounded-lg bg-white/90 px-2 py-1 text-xs shadow-sm opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
                                               onClick={() =>
                                                 handleRemoveImage(
                                                   selectedDateKey,
@@ -1166,6 +1547,10 @@ export function UserDelivery() {
                                             >
                                               Remove
                                             </button>
+
+                                            <div className="border-t bg-background/90 px-2 py-1 text-[11px] text-muted-foreground">
+                                              {img.file ? formatBytes(img.file.size) : ""}
+                                            </div>
                                           </div>
                                         ))}
                                       </div>
@@ -1376,6 +1761,7 @@ export function UserDelivery() {
                       <TableRow className="bg-muted/40 hover:bg-muted/40">
                         <TableHead>Date</TableHead>
                         <TableHead>Category</TableHead>
+                        <TableHead>HLA Manager</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Uploaded At</TableHead>
                         <TableHead>Images</TableHead>
@@ -1385,13 +1771,13 @@ export function UserDelivery() {
                     <TableBody>
                       {isHistoryLoading ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                          <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                             Loading...
                           </TableCell>
                         </TableRow>
                       ) : historyRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                          <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                             No records found.
                           </TableCell>
                         </TableRow>
@@ -1407,6 +1793,7 @@ export function UserDelivery() {
                               <TableCell className="font-medium whitespace-nowrap">
                                 {r.categoryLabel}
                               </TableCell>
+                              <TableCell className="max-w-[220px] truncate">{r.hlaManagerName || ""}</TableCell>
                               <TableCell>
                                 <Badge className={`rounded-xl ${meta.badgeClass}`}>
                                   <StatusIcon className="mr-1 size-3.5" />
@@ -1433,6 +1820,7 @@ export function UserDelivery() {
                                       setViewDetailsTarget({
                                         dateKey: r.dateKey,
                                         categoryKey: r.categoryKey,
+                                        hlaManagerName: r.hlaManagerName,
                                       }))
                                     }
                                   >
@@ -1530,6 +1918,10 @@ export function UserDelivery() {
                               <span className="font-medium text-right">{formatDateTime(r.uploadedAt)}</span>
                             </div>
                             <div className="flex items-center justify-between gap-3">
+                              <span className="text-muted-foreground">HLA Manager</span>
+                              <span className="font-medium text-right">{r.hlaManagerName || ""}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
                               <span className="text-muted-foreground">Images</span>
                               <span className="font-medium">{r.imagesCount}</span>
                             </div>
@@ -1566,6 +1958,7 @@ export function UserDelivery() {
                                 setViewDetailsTarget({
                                   dateKey: r.dateKey,
                                   categoryKey: r.categoryKey,
+                                  hlaManagerName: r.hlaManagerName,
                                 }))
                               }
                             >
@@ -1707,6 +2100,13 @@ export function UserDelivery() {
                                 <div>
                                   <div className="text-xs text-muted-foreground">Status</div>
                                   <div className="mt-1 font-medium">{meta.label}</div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <div className="text-xs text-muted-foreground">HLA Manager</div>
+                                <div className="mt-1 font-medium">
+                                  {viewDetailsTarget?.hlaManagerName || "N/A"}
                                 </div>
                               </div>
 
@@ -2022,9 +2422,10 @@ export function UserDelivery() {
                         })
                       }
                     >
-                      <img
+                      <LazyOptimizedImage
                         src={img.url}
                         alt={img.file?.name ?? "Uploaded image"}
+                        containerClassName="h-32 w-full"
                         className="h-32 w-full object-cover"
                       />
                     </button>
@@ -2075,11 +2476,12 @@ export function UserDelivery() {
 
             return (
               <div className="grid gap-3">
-                <div className="rounded-xl border bg-muted/10 overflow-hidden">
-                  <img
+                <div className="rounded-xl border bg-black/90 overflow-hidden flex items-center justify-center min-h-[200px]">
+                  <OptimizedImage
                     src={img.url}
                     alt={img.file?.name ?? "Uploaded image"}
-                    className="w-full max-h-[50vh] sm:max-h-[60vh] object-contain bg-black/90"
+                    containerClassName="w-full h-[60vh]"
+                    className="h-full w-full object-contain"
                   />
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -2173,6 +2575,23 @@ export function UserDelivery() {
             >
               <div className="h-full w-full bg-emerald-500" />
             </motion.div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isCompressing} onOpenChange={() => {}}>
+        <DialogContent className="w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl">
+          <div className="flex flex-col items-center text-center">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-black text-white">
+              <Loader2 className="size-6 animate-spin" />
+            </div>
+            <div className="mt-4 text-base font-semibold">Optimizing image</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              {compressText || "Compressing to meet the 2MB limit…"}
+            </div>
+            <div className="mt-4 w-full rounded-xl border bg-muted/10 p-3 text-xs text-muted-foreground">
+              Please wait. This keeps the upload fast and compatible.
+            </div>
           </div>
         </DialogContent>
       </Dialog>

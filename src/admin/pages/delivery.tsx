@@ -41,7 +41,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   Pagination,
   PaginationContent,
@@ -117,19 +116,25 @@ const OptimizedImage = ({
 }) => {
   const [isLoaded, setIsLoaded] = useState(false)
   const [hasError, setHasError] = useState(false)
-  const [cachedSrc, setCachedSrc] = useState<string>(src)
+  const [cachedSrc, setCachedSrc] = useState<string>("")
   const imgRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
     let cancelled = false
     const fullUrl = src.startsWith('http') ? src : `${getApiBaseUrl()}${src}`
-    
-    // Check cache first
+
+    // Check cache first (avoid skeleton flash when reopening)
     const cached = getCachedImage(fullUrl)
     if (cached) {
+      setHasError(false)
       setCachedSrc(cached)
+      setIsLoaded(true)
       return
     }
+
+    setIsLoaded(false)
+    setHasError(false)
+    setCachedSrc("")
 
     // Fetch and cache the image
     fetch(fullUrl, {
@@ -161,7 +166,7 @@ const OptimizedImage = ({
         <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-slate-100">
           <ImageIcon className="size-6 text-slate-400" />
         </div>
-      ) : (
+      ) : cachedSrc ? (
         <img
           ref={imgRef}
           src={cachedSrc}
@@ -178,7 +183,7 @@ const OptimizedImage = ({
             onError?.()
           }}
         />
-      )}
+      ) : null}
     </div>
   )
 }
@@ -188,6 +193,7 @@ type AdminDeliveryRow = {
   dateKey: string
   municipality: string
   school: string
+  hlaManagerName?: string
   categoryKey: string
   categoryLabel: string
   status: DeliveryStatus
@@ -331,6 +337,7 @@ export function AdminDelivery() {
       ["Date", row.dateKey],
       ["Municipality", row.municipality],
       ["School", row.school],
+      ["Uploaded By", String(row.hlaManagerName || "") || "N/A"],
       ["Category", row.categoryLabel],
       ["Status", row.status],
       ["Uploaded At", formatDateTime(row.uploadedAt)],
@@ -481,6 +488,7 @@ export function AdminDelivery() {
         dateKey,
         municipality: String(user?.municipality || ""),
         school: String(user?.school || ""),
+        hlaManagerName: String(user?.hlaManagerName || user?.name || ""),
         categoryKey: String(record.categoryKey || ""),
         categoryLabel: String(record.categoryLabel || ""),
         status: (record.status as any) || "Pending",
@@ -748,6 +756,7 @@ export function AdminDelivery() {
                   <TableHead>Date</TableHead>
                   <TableHead>Municipality</TableHead>
                   <TableHead>School</TableHead>
+                  <TableHead>HLA Manager</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Uploaded At</TableHead>
@@ -758,13 +767,13 @@ export function AdminDelivery() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : filteredRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
                       No records found.
                     </TableCell>
                   </TableRow>
@@ -777,6 +786,7 @@ export function AdminDelivery() {
                         <TableCell className="whitespace-nowrap">{r.dateKey}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.municipality}</TableCell>
                         <TableCell className="max-w-[260px] truncate">{r.school}</TableCell>
+                        <TableCell className="max-w-[220px] truncate">{r.hlaManagerName || ""}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.categoryLabel}</TableCell>
                         <TableCell>
                           <Badge className={`rounded-xl ${meta.badgeClass}`}>
@@ -793,37 +803,27 @@ export function AdminDelivery() {
                         <TableCell className="whitespace-nowrap">{r.images.length}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="rounded-lg"
-                                  onClick={() => setViewDetails(r)}
-                                >
-                                  <Eye className="size-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent sideOffset={6}>Details</TooltipContent>
-                            </Tooltip>
+                            <Button
+                              variant="outline"
+                              className="h-8 rounded-lg px-2 text-xs bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900"
+                              onClick={() => setViewDetails(r)}
+                            >
+                              <Eye className="mr-1 size-3.5" />
+                              Details
+                            </Button>
 
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="rounded-lg"
-                                  disabled={r.images.length === 0}
-                                  onClick={() => {
-                                    setViewImages(r)
-                                    setImagePreviewIndex(null)
-                                  }}
-                                >
-                                  <ImageIcon className="size-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent sideOffset={6}>Images</TooltipContent>
-                            </Tooltip>
+                            <Button
+                              variant="outline"
+                              className="h-8 rounded-lg px-2 text-xs bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100 hover:text-sky-900"
+                              disabled={r.images.length === 0}
+                              onClick={() => {
+                                setViewImages(r)
+                                setImagePreviewIndex(null)
+                              }}
+                            >
+                              <ImageIcon className="mr-1 size-3.5" />
+                              Images
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -906,6 +906,10 @@ export function AdminDelivery() {
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">School</span>
                   <span className="font-medium text-right">{viewDetails.school}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">Uploaded By</span>
+                  <span className="font-medium text-right">{viewDetails.hlaManagerName || "N/A"}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Category</span>
@@ -1091,84 +1095,90 @@ export function AdminDelivery() {
           if (!open) setImagePreviewIndex(null)
         }}
       >
-        <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-2rem)] max-w-5xl max-h-[90vh] overflow-hidden p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Image Preview</DialogTitle>
-            <DialogDescription>Use Prev/Next to navigate.</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-2rem)] max-w-4xl max-h-[90vh] overflow-hidden p-0">
+          <div className="flex max-h-[90vh] flex-col">
+            <DialogHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pt-6">
+              <DialogTitle>Image Preview</DialogTitle>
+              <DialogDescription>Use Prev/Next to navigate.</DialogDescription>
+            </DialogHeader>
 
-          {(() => {
-            if (!viewImages || imagePreviewIndex === null) {
-              return (
-                <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-                  No image.
-                </div>
-              )
-            }
+            <div className="flex-1 min-h-0 px-4 sm:px-6">
+              {(() => {
+                if (!viewImages || imagePreviewIndex === null) {
+                  return (
+                    <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
+                      No image.
+                    </div>
+                  )
+                }
 
-            const img = viewImages.images[imagePreviewIndex]
-            if (!img) {
-              return (
-                <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-                  No image.
-                </div>
-              )
-            }
+                const img = viewImages.images[imagePreviewIndex]
+                if (!img) {
+                  return (
+                    <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
+                      No image.
+                    </div>
+                  )
+                }
 
-            const canPrev = imagePreviewIndex > 0
-            const canNext = imagePreviewIndex < viewImages.images.length - 1
+                const canPrev = imagePreviewIndex > 0
+                const canNext = imagePreviewIndex < viewImages.images.length - 1
 
-            return (
-              <div className="grid gap-3">
-                <div className="relative rounded-xl border bg-black/90 overflow-hidden flex items-center justify-center min-h-[200px]">
-                  <OptimizedImage
-                    src={img.url}
-                    alt={img.filename}
-                    containerClassName="w-full"
-                    className="max-h-[58vh] sm:max-h-[62vh] w-auto object-contain"
-                  />
-                </div>
+                return (
+                  <div className="flex h-full flex-col gap-3">
+                    <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl border bg-black/90">
+                      <OptimizedImage
+                        src={img.url}
+                        alt={img.filename}
+                        containerClassName="w-full h-full"
+                        className="h-full w-full object-contain"
+                      />
+                    </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-xs text-muted-foreground truncate">
-                    {img.filename + ` (${imagePreviewIndex + 1}/${viewImages.images.length})`}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-xs text-muted-foreground truncate">
+                        {img.filename + ` (${imagePreviewIndex + 1}/${viewImages.images.length})`}
+                      </div>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-xl"
+                          disabled={!canPrev}
+                          onClick={() =>
+                            setImagePreviewIndex((i) => (i === null ? i : Math.max(0, i - 1)))
+                          }
+                        >
+                          <ChevronLeft className="size-4" />
+                          Prev
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-xl"
+                          disabled={!canNext}
+                          onClick={() =>
+                            setImagePreviewIndex((i) =>
+                              i === null ? i : Math.min(viewImages.images.length - 1, i + 1)
+                            )
+                          }
+                        >
+                          Next
+                          <ChevronRight className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-xl w-full sm:w-auto"
-                      disabled={!canPrev}
-                      onClick={() => setImagePreviewIndex((i) => (i === null ? i : Math.max(0, i - 1)))}
-                    >
-                      <ChevronLeft className="size-4" />
-                      Prev
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-xl w-full sm:w-auto"
-                      disabled={!canNext}
-                      onClick={() =>
-                        setImagePreviewIndex((i) =>
-                          i === null ? i : Math.min(viewImages.images.length - 1, i + 1)
-                        )
-                      }
-                    >
-                      Next
-                      <ChevronRight className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )
-          })()}
+                )
+              })()}
+            </div>
 
-          <DialogFooter>
-            <Button variant="outline" className="rounded-xl" onClick={() => setImagePreviewIndex(null)}>
-              Close
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
+              <Button variant="outline" className="rounded-xl" onClick={() => setImagePreviewIndex(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

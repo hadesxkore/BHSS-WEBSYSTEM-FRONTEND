@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Truck,
   ClipboardCheck,
+  BookOpen,
   CircleUserRound,
   Bell,
   Megaphone,
@@ -49,6 +50,7 @@ import { UserAccount } from "./pages/account"
 import { UserAttendance } from "./pages/attendance"
 import { UserAnnouncements } from "./pages/announcements"
 import { UserEventCalendar } from "./pages/event-calendar"
+import { UserInstructions } from "./pages/instructions"
 import { FileSubmission } from "@/users/pages/file-submission"
 
 type UserSidebarLayoutProps = {
@@ -298,6 +300,11 @@ const ALL_MENU_ITEMS: UserMenuItem[] = [
     component: UserHome,
   },
   {
+    title: "Instructions",
+    icon: BookOpen,
+    component: UserInstructions,
+  },
+  {
     title: "Announcements",
     icon: Megaphone,
     component: UserAnnouncements,
@@ -338,6 +345,10 @@ function getMenuItemsForRole(hlaRoleType?: string): UserMenuItem[] {
     if (isCoordinator && (item.title === "Delivery" || item.title === "Attendance")) {
       return false
     }
+    // Instructions is only for managers
+    if (!isManager && item.title === "Instructions") {
+      return false
+    }
     // Manager cannot see File Submission
     if (isManager && item.title === "File Submission") {
       return false
@@ -354,6 +365,9 @@ export function UserSidebarLayout({
 }: UserSidebarLayoutProps) {
   const [activeItem, setActiveItem] = useState<string>("Home")
 
+  const [announcementsBadgeCount, setAnnouncementsBadgeCount] = useState(0)
+  const [upcomingEventsBadgeCount, setUpcomingEventsBadgeCount] = useState(0)
+
   const [authUser, setAuthUser] = useState<AuthState["user"] | null>(() => {
     return getAuth()?.user || null
   })
@@ -368,6 +382,59 @@ export function UserSidebarLayout({
     const auth = getAuth()
     return readReadSet(auth?.user?.id)
   })
+
+  function toLocalDateKey(d: Date) {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${y}-${m}-${day}`
+  }
+
+  function isUpcomingDateKey(dateKey: string) {
+    const key = String(dateKey || "").trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return false
+    const todayKey = toLocalDateKey(new Date())
+    return key >= todayKey
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const [annRes, eventsRes] = await Promise.all([
+          apiFetch("/api/announcements") as Promise<AnnouncementsListResponse>,
+          apiFetch("/api/events") as Promise<EventsListResponse>,
+        ])
+
+        if (cancelled) return
+
+        const announcements = Array.isArray((annRes as any)?.announcements) ? (annRes as any).announcements : []
+        const events = Array.isArray((eventsRes as any)?.events) ? (eventsRes as any).events : []
+
+        setAnnouncementsBadgeCount(announcements.length + events.length)
+
+        const upcoming = events.reduce((acc: number, e: any) => {
+          const dateKey = String(e?.dateKey || "")
+          const statusRaw = String(e?.status || "Scheduled")
+          const isCancelled = statusRaw === "Cancelled"
+          if (isCancelled) return acc
+          if (!isUpcomingDateKey(dateKey)) return acc
+          return acc + 1
+        }, 0)
+        setUpcomingEventsBadgeCount(upcoming)
+      } catch {
+        if (!cancelled) {
+          setAnnouncementsBadgeCount(0)
+          setUpcomingEventsBadgeCount(0)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     const auth = getAuth()
@@ -531,6 +598,11 @@ export function UserSidebarLayout({
       const endTime = String(payload?.event?.endTime || "")
       const id = String(payload?.event?.id || "")
 
+      setAnnouncementsBadgeCount((prev) => prev + 1)
+      if (isUpcomingDateKey(dateKey)) {
+        setUpcomingEventsBadgeCount((prev) => prev + 1)
+      }
+
       const isRead = (() => {
         const auth = getAuth()
         return readReadSet(auth?.user?.id).has(
@@ -587,6 +659,8 @@ export function UserSidebarLayout({
       const createdAt =
         typeof payload?.announcement?.createdAt === "number" ? payload.announcement.createdAt : Date.now()
 
+      setAnnouncementsBadgeCount((prev) => prev + 1)
+
       const notificationId = `announcement-${id || `${createdAt}-${title}`}`
 
       const isRead = (() => {
@@ -639,6 +713,10 @@ export function UserSidebarLayout({
       const endTime = String(payload?.event?.endTime || "")
       const id = String(payload?.event?.id || "")
       const reason = String(payload?.event?.cancelReason || "")
+
+      if (isUpcomingDateKey(dateKey)) {
+        setUpcomingEventsBadgeCount((prev) => Math.max(0, prev - 1))
+      }
 
       const message = `${dateKey || "(date)"} • ${formatTimeRangeAmPm(startTime, endTime)}`
       const notificationId = `event-${id || `${dateKey}-${startTime}-${title}`}`
@@ -858,7 +936,19 @@ export function UserSidebarLayout({
                       tooltip={item.title}
                     >
                       <item.icon />
-                      <span>{item.title}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate">{item.title}</span>
+                        {item.title === "Announcements" && announcementsBadgeCount > 0 ? (
+                          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1 text-[11px] font-semibold text-white">
+                            {announcementsBadgeCount > 99 ? "99+" : announcementsBadgeCount}
+                          </span>
+                        ) : null}
+                        {item.title === "Calendar" && upcomingEventsBadgeCount > 0 ? (
+                          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1 text-[11px] font-semibold text-white">
+                            {upcomingEventsBadgeCount > 99 ? "99+" : upcomingEventsBadgeCount}
+                          </span>
+                        ) : null}
+                      </span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}

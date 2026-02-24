@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
-import { addDays, format, isAfter, isBefore, parseISO, startOfDay } from "date-fns"
+import { format, isAfter, isBefore, parseISO, startOfDay } from "date-fns"
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
   ClipboardList,
   History,
   Loader2,
+  Plus,
   Pencil,
   Save,
   Search,
@@ -233,9 +234,6 @@ export function UserAttendance() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, date])
 
-  const pendingCount = pendingEntries.length
-  const isBatch = pendingCount > 0
-
   const totals = useMemo(() => {
     const now = new Date()
     const weekAgo = new Date(now)
@@ -456,95 +454,6 @@ export function UserAttendance() {
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, userId, range.from, range.to, search, gradeFilter])
-
-  const handleSave = async () => {
-    if (!userId) {
-      toast.error("Not authenticated")
-      return
-    }
-    if (!date) {
-      toast.error("Please select a date")
-      return
-    }
-
-    if (pendingEntries.length > 0) {
-      toast.error("You have pending entries. Use Save all.")
-      return
-    }
-
-    const p = safeInt(present)
-    const a = safeInt(absent)
-
-    const finalGrade = (gradeOption === "Custom" ? customGrade : gradeOption).trim()
-    if (!finalGrade) {
-      toast.error("Please select a grade")
-      return
-    }
-
-    if (p + a <= 0) {
-      toast.error("Please enter at least one value")
-      return
-    }
-
-    setIsSaving(true)
-    try {
-      const dateKey = startOfDayKey(date)
-
-      const data = (await apiFetch("/api/attendance/record", {
-        method: "POST",
-        body: JSON.stringify({
-          dateKey,
-          grade: finalGrade,
-          present: p,
-          absent: a,
-          notes: notes.trim() || "",
-        }),
-      })) as { record?: any }
-
-      const saved = data?.record
-      if (saved) {
-        setSuccessModalOpen(true)
-        if (successTimerRef.current) {
-          window.clearTimeout(successTimerRef.current)
-          successTimerRef.current = null
-        }
-        successTimerRef.current = window.setTimeout(() => {
-          setSuccessModalOpen(false)
-        }, 900)
-      } else {
-        setSuccessModalOpen(true)
-        if (successTimerRef.current) {
-          window.clearTimeout(successTimerRef.current)
-          successTimerRef.current = null
-        }
-        successTimerRef.current = window.setTimeout(() => {
-          setSuccessModalOpen(false)
-        }, 900)
-      }
-
-      setPresent("")
-      setAbsent("")
-      setNotes("")
-
-      if (gradeOption === "Custom") {
-        setCustomGrade("")
-        setCustomGradeDraft("")
-        setGradeOption(lastPresetGrade)
-      }
-
-      setActiveTab("record")
-
-      try {
-        setDate(addDays(date, 1))
-      } catch {
-        // ignore
-      }
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to save")
-    } finally {
-      setIsSaving(false)
-    }
-  }
 
   const addPendingEntry = () => {
     if (!date) {
@@ -769,14 +678,24 @@ export function UserAttendance() {
                 </div>
               </div>
 
-              <div className="flex justify-stretch sm:justify-end">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <Button
                   type="button"
-                  variant="outline"
                   className="w-full rounded-xl sm:w-auto"
                   onClick={addPendingEntry}
                   disabled={isSaving || isDateLoading}
                 >
+                  <Save className="size-4" />
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  className="w-full rounded-xl sm:w-auto"
+                  variant="outline"
+                  onClick={addPendingEntry}
+                  disabled={isSaving || isDateLoading}
+                >
+                  <Plus className="size-4" />
                   Add another
                 </Button>
               </div>
@@ -861,34 +780,6 @@ export function UserAttendance() {
               </div>
 
               <Separator />
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Save Attendance is disabled if you added another grade (pending list).
-                </div>
-                <Button
-                  className="w-full rounded-xl sm:w-auto"
-                  onClick={handleSave}
-                  disabled={isSaving || isDateLoading || isBatch}
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Saving
-                    </>
-                  ) : isDateLoading ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Loading
-                    </>
-                  ) : (
-                    <>
-                      <Save className="size-4" />
-                      Save Attendance
-                    </>
-                  )}
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
