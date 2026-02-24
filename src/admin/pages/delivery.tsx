@@ -545,7 +545,6 @@ export function AdminDelivery() {
   const categoryOptions = useMemo(() => {
     const map = new Map<string, string>()
     for (const r of rows) {
-      if (selectedMunicipality !== "all" && r.municipality !== selectedMunicipality) continue
       if (selectedSchool !== "all" && r.school !== selectedSchool) continue
       const key = String(r.categoryKey || "").trim() || String(r.categoryLabel || "").trim()
       const label = String(r.categoryLabel || "").trim() || key
@@ -739,7 +738,6 @@ export function AdminDelivery() {
               <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(v)}>
                 <SelectTrigger
                   className="h-10 w-full rounded-xl min-w-0"
-                  disabled={selectedMunicipality === "all"}
                 >
                   <SelectValue placeholder="Materials/Goods" />
                 </SelectTrigger>

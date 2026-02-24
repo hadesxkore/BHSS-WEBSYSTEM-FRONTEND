@@ -46,6 +46,23 @@ type DeliverySavedPayload = {
 
 export function AdminGlobalNotifications() {
   const lastNotificationIdRef = useRef<string>("")
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const playSound = () => {
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio("/notifsound.mp3")
+        audioRef.current.preload = "auto"
+      }
+      audioRef.current.currentTime = 0
+      const p = audioRef.current.play()
+      if (p && typeof (p as any).catch === "function") {
+        ;(p as any).catch(() => {})
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   useEffect(() => {
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
@@ -76,6 +93,8 @@ export function AdminGlobalNotifications() {
         message: body,
         id: notificationId,
       })
+
+      playSound()
 
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         try {
@@ -115,6 +134,8 @@ export function AdminGlobalNotifications() {
         message: body,
         id: notificationId,
       })
+
+      playSound()
 
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         try {
