@@ -31,6 +31,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
+import {
   Table,
   TableBody,
   TableCell,
@@ -128,6 +136,9 @@ export function Attendance() {
   const [search, setSearch] = useState("")
   const [sortKey, setSortKey] = useState<SortKey>("municipality")
   const [sortDir, setSortDir] = useState<SortDir>("asc")
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 12
 
   const [rows, setRows] = useState<AttendanceRow[]>([])
   const [selectedNotes, setSelectedNotes] = useState<{school: string; grade: string; notes: string} | null>(null)
@@ -257,6 +268,24 @@ export function Attendance() {
     })
     return copy
   }, [filtered, sortDir, sortKey])
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(sorted.length / pageSize))
+  }, [sorted.length])
+
+  const pagedRows = useMemo(() => {
+    const safePage = Math.min(Math.max(currentPage, 1), totalPages)
+    const start = (safePage - 1) * pageSize
+    return sorted.slice(start, start + pageSize)
+  }, [currentPage, sorted, totalPages])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [dayKey, search, selectedMunicipality, selectedSchool, sortKey, sortDir])
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages)
+  }, [currentPage, totalPages])
 
   const stats = useMemo(() => {
     const total = filtered.length
@@ -529,7 +558,7 @@ export function Attendance() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sorted.map((row) => (
+                pagedRows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>{row.municipality}</TableCell>
                     <TableCell>{row.school}</TableCell>
@@ -544,7 +573,7 @@ export function Attendance() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="rounded-xl"
+                        className="relative rounded-xl"
                         onClick={() => setSelectedNotes({
                           school: row.school,
                           grade: row.grade,
@@ -553,6 +582,11 @@ export function Attendance() {
                       >
                         <MessageSquare className="mr-1 size-3.5" />
                         View Notes
+                        {row.notes.trim() && (
+                          <Badge className="ml-2 h-5 rounded-full bg-amber-100 px-2 text-[11px] font-semibold text-amber-800 border border-amber-200">
+                            1
+                          </Badge>
+                        )}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -560,6 +594,53 @@ export function Attendance() {
               )}
             </TableBody>
           </Table>
+
+          {sorted.length > pageSize && (
+            <div className="mt-4 flex justify-end">
+              <Pagination className="mx-0 w-auto justify-end">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setCurrentPage((p) => Math.max(1, p - 1))
+                      }}
+                      aria-disabled={currentPage === 1}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        isActive={page === currentPage}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setCurrentPage(page)
+                        }}
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }}
+                      aria-disabled={currentPage === totalPages}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 

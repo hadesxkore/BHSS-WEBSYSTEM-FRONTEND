@@ -289,6 +289,7 @@ export function AdminDelivery() {
 
   const [selectedMunicipality, setSelectedMunicipality] = useState<string>("all")
   const [selectedSchool, setSelectedSchool] = useState<string>("all")
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
@@ -541,13 +542,30 @@ export function AdminDelivery() {
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [rows, selectedMunicipality])
 
+  const categoryOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const r of rows) {
+      if (selectedMunicipality !== "all" && r.municipality !== selectedMunicipality) continue
+      if (selectedSchool !== "all" && r.school !== selectedSchool) continue
+      const key = String(r.categoryKey || "").trim() || String(r.categoryLabel || "").trim()
+      const label = String(r.categoryLabel || "").trim() || key
+      if (!key) continue
+      map.set(key, label)
+    }
+
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [rows, selectedMunicipality, selectedSchool])
+
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
       if (selectedMunicipality !== "all" && r.municipality !== selectedMunicipality) return false
       if (selectedSchool !== "all" && r.school !== selectedSchool) return false
+      if (selectedCategory !== "all" && r.categoryKey !== selectedCategory) return false
       return true
     })
-  }, [rows, selectedMunicipality, selectedSchool])
+  }, [rows, selectedMunicipality, selectedSchool, selectedCategory])
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(filteredRows.length / pageSize))
@@ -561,7 +579,7 @@ export function AdminDelivery() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [range?.from, range?.to, search, sort, selectedMunicipality, selectedSchool])
+  }, [range?.from, range?.to, search, sort, selectedMunicipality, selectedSchool, selectedCategory])
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages)
@@ -637,7 +655,7 @@ export function AdminDelivery() {
             <CardTitle>Records</CardTitle>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-12 lg:items-end">
-            <div className="min-w-0 lg:col-span-3">
+            <div className="min-w-0 lg:col-span-2">
               <Popover open={isRangeOpen} onOpenChange={setIsRangeOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -681,6 +699,7 @@ export function AdminDelivery() {
                 onValueChange={(v) => {
                   setSelectedMunicipality(v)
                   setSelectedSchool("all")
+                  setSelectedCategory("all")
                 }}
               >
                 <SelectTrigger className="h-10 w-full rounded-xl min-w-0">
@@ -697,7 +716,7 @@ export function AdminDelivery() {
               </Select>
             </div>
 
-            <div className="min-w-0 lg:col-span-3">
+            <div className="min-w-0 lg:col-span-2">
               <Select value={selectedSchool} onValueChange={(v) => setSelectedSchool(v)}>
                 <SelectTrigger
                   className="h-10 w-full rounded-xl min-w-0"
@@ -710,6 +729,25 @@ export function AdminDelivery() {
                   {schoolOptions.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="min-w-0 lg:col-span-2">
+              <Select value={selectedCategory} onValueChange={(v) => setSelectedCategory(v)}>
+                <SelectTrigger
+                  className="h-10 w-full rounded-xl min-w-0"
+                  disabled={selectedMunicipality === "all"}
+                >
+                  <SelectValue placeholder="Materials/Goods" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Materials/Goods</SelectItem>
+                  {categoryOptions.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -781,8 +819,16 @@ export function AdminDelivery() {
                   pagedRows.map((r) => {
                     const meta = statusMeta(r.status)
                     const StatusIcon = meta.icon
+                    const hasConcerns = Array.isArray(r.concerns) && r.concerns.length > 0
                     return (
-                      <TableRow key={r.id}>
+                      <TableRow
+                        key={r.id}
+                        className={
+                          hasConcerns
+                            ? "bg-yellow-50 hover:bg-yellow-100"
+                            : ""
+                        }
+                      >
                         <TableCell className="whitespace-nowrap">{r.dateKey}</TableCell>
                         <TableCell className="whitespace-nowrap">{r.municipality}</TableCell>
                         <TableCell className="max-w-[260px] truncate">{r.school}</TableCell>
