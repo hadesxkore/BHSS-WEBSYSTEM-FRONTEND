@@ -17,7 +17,6 @@ import {
 import {
   Activity,
   BadgeCheck,
-  Calendar,
   Clock,
   Megaphone,
   PackageCheck,
@@ -25,13 +24,9 @@ import {
   TrendingUp,
   TriangleAlert,
   Users,
-  ArrowRight,
   ChevronRight,
 } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -594,7 +589,7 @@ export function Dashboard() {
       {/* ── Concern Details Dialog ── */}
       <Dialog
         open={!!selectedConcern && imagePreviewIndex === null}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean) => {
           if (!open) { setSelectedConcern(null); setImagePreviewIndex(null) }
         }}
       >
@@ -713,7 +708,7 @@ export function Dashboard() {
       {/* ── Image Preview Dialog ── */}
       <Dialog
         open={!!selectedConcern && imagePreviewIndex !== null}
-        onOpenChange={(open) => { if (!open) setImagePreviewIndex(null) }}
+        onOpenChange={(open: boolean) => { if (!open) setImagePreviewIndex(null) }}
       >
         <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-2rem)] max-w-6xl max-h-[90vh] overflow-hidden rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 shadow-xl">
           <DialogHeader>

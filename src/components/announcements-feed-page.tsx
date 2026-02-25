@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { motion } from "motion/react"
 import { format, parseISO } from "date-fns"
-import { CalendarDays, Megaphone, CalendarClock, ChevronRight, Image as ImageIcon, Paperclip, Radio, RefreshCw, Plus, Heart } from "lucide-react"
+import { Megaphone, CalendarClock, ChevronRight, Image as ImageIcon, Paperclip, Radio, RefreshCw, Plus, Heart } from "lucide-react"
 import { io, type Socket } from "socket.io-client"
 import { toast } from "sonner"
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -16,17 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 
 type AuthState = {

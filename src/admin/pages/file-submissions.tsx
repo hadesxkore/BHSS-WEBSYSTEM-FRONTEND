@@ -19,7 +19,7 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -61,9 +61,6 @@ type AdminFileSubmissionRow = {
     hlaRoleType: string
   }
 }
-
-const WHITE_CARD_CLASS =
-  "rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow duration-200"
 
 const FOLDER_BADGE_CLASSES = [
   "bg-sky-50 text-sky-800 border-sky-200",
