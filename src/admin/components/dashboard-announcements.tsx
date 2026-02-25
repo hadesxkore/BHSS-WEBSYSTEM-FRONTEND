@@ -250,7 +250,7 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
             <Megaphone className="size-5" />
             Latest Announcements
           </CardTitle>
-          <div className="mt-1 text-sm text-muted-foreground truncate">
+          <div className="mt-1 text-sm text-muted-foreground whitespace-normal break-words">
             Recent updates posted to your announcements feed.
           </div>
         </div>
@@ -293,7 +293,7 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
                     setSelected(a)
                     setDetailsOpen(true)
                   }}
-                  className="group overflow-hidden rounded-2xl border border-black/5 bg-white/60 hover:bg-white/75 transition-colors"
+                  className="group w-full overflow-hidden rounded-2xl border border-black/5 bg-white/60 hover:bg-white/75 transition-colors"
                 >
                   <div className="relative h-40 w-full overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 sm:h-44">
                     {previewUrl ? (
@@ -325,7 +325,7 @@ export function DashboardAnnouncements({ onViewAll }: DashboardAnnouncementsProp
                       </div>
                     ) : null}
 
-                    <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
+                    <div className="absolute inset-x-3 top-3 flex flex-wrap items-center gap-1.5">
                       {a.priority ? (
                         <Badge
                           variant="secondary"

@@ -1,22 +1,19 @@
 import { useEffect, useMemo, useState } from "react"
 import { motion } from "motion/react"
-import ReactApexChart from "react-apexcharts"
-import { addDays, format, parseISO, subDays } from "date-fns"
+import { format, parseISO } from "date-fns"
 import {
   Activity,
   Calendar,
-  CalendarClock,
   ClipboardCheck,
   Megaphone,
-  TrendingUp,
   Truck,
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { DashboardAnnouncements } from "@/admin/components/dashboard-announcements"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
+import { Calendar as CalendarPicker } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 type AuthState = {
   token: string
@@ -146,11 +143,13 @@ export function UserHome() {
   const school = String(auth?.user?.school || "")
   const municipality = String(auth?.user?.municipality || "")
 
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+  const selectedDateKey = useMemo(() => safeKey(selectedDate || new Date()), [selectedDate])
+
   const [isLoading, setIsLoading] = useState(true)
   const [attendance, setAttendance] = useState<AttendanceRecordDto[]>([])
   const [deliveries, setDeliveries] = useState<DeliveryRecordDto[]>([])
   const [announcementsCount, setAnnouncementsCount] = useState(0)
-  const [eventsCount, setEventsCount] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -158,12 +157,12 @@ export function UserHome() {
     ;(async () => {
       setIsLoading(true)
       try {
-        const fromKey = safeKey(subDays(new Date(), 29))
-        const [attRes, delRes, annRes, eventsRes] = await Promise.all([
-          apiFetch(`/api/attendance/history?from=${encodeURIComponent(fromKey)}&sort=newest`),
-          apiFetch(`/api/delivery/history?sort=newest`),
+        const [attRes, delRes, annRes] = await Promise.all([
+          apiFetch(
+            `/api/attendance/history?from=${encodeURIComponent(selectedDateKey)}&to=${encodeURIComponent(selectedDateKey)}&sort=newest`
+          ),
+          apiFetch(`/api/delivery/history?dateKey=${encodeURIComponent(selectedDateKey)}&sort=newest`),
           apiFetch(`/api/announcements`),
-          apiFetch(`/api/events`),
         ])
 
         if (cancelled) return
@@ -173,21 +172,16 @@ export function UserHome() {
         const ann = Array.isArray((annRes as any)?.announcements)
           ? (((annRes as any).announcements as any[]) as AnnouncementDto[])
           : []
-        const events = Array.isArray((eventsRes as any)?.events)
-          ? ((eventsRes as any).events as any[])
-          : []
 
         setAttendance(att)
         setDeliveries(del)
         setAnnouncementsCount(ann.length)
-        setEventsCount(events.length)
       } catch (e: any) {
         if (!cancelled) {
           toast.error(e?.message || "Failed to load dashboard")
           setAttendance([])
           setDeliveries([])
           setAnnouncementsCount(0)
-          setEventsCount(0)
         }
       } finally {
         if (!cancelled) setIsLoading(false)
@@ -197,75 +191,34 @@ export function UserHome() {
     return () => {
       cancelled = true
     }
-  }, [])
-
-  const dateKeys14 = useMemo(() => {
-    const start = subDays(new Date(), 13)
-    return Array.from({ length: 14 }, (_, i) => safeKey(addDays(start, i)))
-  }, [])
-
-  const attendanceSeries = useMemo(() => {
-    const byKey = new Map<string, { present: number; absent: number }>()
-    for (const r of attendance) {
-      const k = String((r as any)?.dateKey || "").trim()
-      if (!k) continue
-      byKey.set(k, {
-        present: Number((r as any)?.present || 0),
-        absent: Number((r as any)?.absent || 0),
-      })
-    }
-
-    const present = dateKeys14.map((k) => byKey.get(k)?.present || 0)
-    const absent = dateKeys14.map((k) => byKey.get(k)?.absent || 0)
-
-    return { present, absent }
-  }, [attendance, dateKeys14])
+  }, [selectedDateKey])
 
   const totals = useMemo(() => {
-    const startKey = dateKeys14[0]
-    const endKey = dateKeys14[dateKeys14.length - 1]
-    const att14 = attendance.filter((r) => {
-      const k = String((r as any)?.dateKey || "").trim()
-      if (!k) return false
-      if (startKey && k < startKey) return false
-      if (endKey && k > endKey) return false
-      return true
-    })
-
-    const present14 = att14.reduce((acc, r) => acc + Number((r as any)?.present || 0), 0)
-    const absent14 = att14.reduce((acc, r) => acc + Number((r as any)?.absent || 0), 0)
-
-    const delivery14 = deliveries.filter((r) => {
-      const k = String((r as any)?.dateKey || "").trim()
-      if (!k) return false
-      if (startKey && k < startKey) return false
-      if (endKey && k > endKey) return false
-      return true
-    })
-
+    const present = attendance.reduce((acc, r) => acc + Number((r as any)?.present || 0), 0)
+    const absent = attendance.reduce((acc, r) => acc + Number((r as any)?.absent || 0), 0)
     return {
-      present14,
-      absent14,
-      records14: att14.length,
-      deliveries14: delivery14.length,
+      present,
+      absent,
+      attendanceRecords: attendance.length,
+      deliveries: deliveries.length,
     }
-  }, [attendance, deliveries, dateKeys14])
+  }, [attendance, deliveries])
 
   const kpis = useMemo<DashboardKpi[]>(() => {
     return [
       {
-        title: "Attendance (14d)",
-        value: String(totals.records14),
+        title: "Attendance",
+        value: String(totals.attendanceRecords),
         delta: "",
         icon: ClipboardCheck,
         accent: "from-sky-500/15 via-sky-500/5 to-transparent",
       },
       {
-        title: "Deliveries (14d)",
-        value: String(totals.deliveries14),
+        title: "Deliveries",
+        value: String(totals.deliveries),
         delta: "",
         icon: Truck,
-        accent: "from-indigo-500/15 via-indigo-500/5 to-transparent",
+        accent: "from-emerald-500/15 via-emerald-500/5 to-transparent",
       },
       {
         title: "Announcements",
@@ -274,15 +227,8 @@ export function UserHome() {
         icon: Megaphone,
         accent: "from-sky-500/15 via-sky-500/5 to-transparent",
       },
-      {
-        title: "Events",
-        value: String(eventsCount),
-        delta: "",
-        icon: CalendarClock,
-        accent: "from-emerald-500/15 via-emerald-500/5 to-transparent",
-      },
     ]
-  }, [totals, announcementsCount, eventsCount])
+  }, [totals, announcementsCount])
 
   const recentActivity = useMemo<ActivityItem[]>(() => {
     const items: ActivityItem[] = []
@@ -322,188 +268,190 @@ export function UserHome() {
     return items.slice(0, 6)
   }, [attendance, deliveries])
 
-  const attendanceChart = useMemo(() => {
-    return {
-      options: {
-        chart: { type: "area", toolbar: { show: false }, fontFamily: "inherit" },
-        stroke: { curve: "smooth", width: 2 },
-        fill: {
-          type: "gradient",
-          gradient: { shadeIntensity: 0.25, opacityFrom: 0.4, opacityTo: 0.05 },
-        },
-        dataLabels: { enabled: false },
-        xaxis: {
-          categories: dateKeys14.map((k) => format(safeParseDateKey(k), "MMM d")),
-          labels: { style: { colors: "#64748b" } },
-          axisBorder: { show: false },
-          axisTicks: { show: false },
-        },
-        yaxis: { labels: { style: { colors: "#64748b" } } },
-        grid: { borderColor: "#e2e8f0", strokeDashArray: 4 },
-        legend: { labels: { colors: "#475569" } },
-        responsive: [
-          {
-            breakpoint: 420,
-            options: {
-              xaxis: { labels: { show: false } },
-              legend: { position: "bottom", horizontalAlign: "left" },
-            },
-          },
-        ],
-      } as any,
-      series: [
-        { name: "Present", data: attendanceSeries.present },
-        { name: "Absent", data: attendanceSeries.absent },
-      ],
-    }
-  }, [attendanceSeries, dateKeys14])
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="space-y-4 min-w-0 overflow-x-hidden"
+      className="min-w-0 overflow-x-hidden space-y-5 p-6 bg-gray-50/50 min-h-screen"
     >
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      {/* ── Header ── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Home</h1>
-          <div className="mt-1 text-sm text-muted-foreground truncate max-w-[calc(100vw-2rem)] sm:max-w-none">
-            {(school || "Your School") + (municipality ? ` • ${municipality}` : "")}
-          </div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Dashboard</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+            Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"} 👋
+          </h1>
+          <p className="text-sm text-gray-400 mt-0.5 truncate max-w-[calc(100vw-3rem)] sm:max-w-none">
+            {(school || "Your School") + (municipality ? ` · ${municipality}` : "")}
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary" className="rounded-xl px-3 py-1">
-            <Calendar className="mr-2 size-4" />
-            Last 14 days
-          </Badge>
-          <Badge variant="outline" className="rounded-xl px-3 py-1">
-            <Activity className="mr-2 size-4" />
-            Summary
-          </Badge>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="rounded-xl h-9 px-4 text-sm border-gray-200 text-gray-600 hover:border-emerald-300 hover:text-emerald-600 gap-2"
+              >
+                <Calendar className="size-3.5" />
+                {format(selectedDate || new Date(), "MMM d, yyyy")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 rounded-2xl border border-gray-100 shadow-lg overflow-hidden" align="end">
+              <CalendarPicker
+                mode="single"
+                selected={selectedDate}
+                onSelect={(d) => setSelectedDate(d || undefined)}
+                numberOfMonths={1}
+                className="p-3"
+              />
+            </PopoverContent>
+          </Popover>
+
+          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl h-9 px-3">
+            <Activity className="size-3.5 text-emerald-500" />
+            <span className="text-xs font-semibold text-gray-500">Summary</span>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* ── KPI Cards ── */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {kpis.map((k, idx) => (
           <motion.div
             key={k.title}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, delay: idx * 0.04 }}
+            transition={{ duration: 0.22, delay: idx * 0.06 }}
           >
-            <Card className={`relative overflow-hidden rounded-2xl border border-black/5 bg-white/70 [@supports(backdrop-filter:blur(0))]:backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_10px_30px_rgba(0,0,0,0.06)]`}>
-              <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{k.title}</CardTitle>
-                <div className="rounded-xl bg-background/70 p-2 shadow-sm">
-                  <k.icon className="size-5" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-end justify-between gap-2">
-                  <div className="text-2xl font-bold tracking-tight sm:text-3xl">{k.value}</div>
-                  {k.delta ? (
-                    <div className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-700">
-                      <TrendingUp className="size-3.5" />
-                      {k.delta}
-                    </div>
-                  ) : null}
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground">
+            <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{k.title}</p>
+                <p className="text-3xl font-bold tracking-tight text-gray-900">
+                  {isLoading ? <span className="text-gray-200 animate-pulse">—</span> : k.value}
+                </p>
+                <p className="text-xs text-gray-400 mt-1.5">
                   {isLoading ? "Loading…" : "Updated from your records"}
-                </div>
-              </CardContent>
-            </Card>
+                </p>
+              </div>
+              <div className={`rounded-2xl p-3 flex-shrink-0 ${
+                idx === 0 ? "bg-sky-50 text-sky-500" :
+                idx === 1 ? "bg-emerald-50 text-emerald-600" :
+                "bg-amber-50 text-amber-500"
+              }`}>
+                <k.icon className="size-5" />
+              </div>
+            </div>
           </motion.div>
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-12">
-          <DashboardAnnouncements />
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, delay: 0.06 }}
-          className="lg:col-span-12"
-        >
-          <Card className="rounded-2xl border border-black/5 bg-white/70 [@supports(backdrop-filter:blur(0))]:backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_10px_30px_rgba(0,0,0,0.06)]">
-            <CardHeader className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <ClipboardCheck className="size-5" />
-                  Attendance Trend
-                </CardTitle>
-                <div className="text-sm text-muted-foreground">Present vs absent (last 14 days)</div>
-              </div>
-              <Badge variant="outline" className="w-fit rounded-xl">
-                Live
-              </Badge>
-            </CardHeader>
-            <CardContent className="h-[240px] sm:h-[320px] p-3 sm:p-6">
-              <div className="h-full w-full overflow-hidden [&_.apexcharts-canvas]:!w-full [&_.apexcharts-svg]:!w-full [&_.apexcharts-canvas]:!h-full [&_.apexcharts-svg]:!h-full">
-                <ReactApexChart
-                  type="area"
-                  height="100%"
-                  width="100%"
-                  options={attendanceChart.options}
-                  series={attendanceChart.series as any}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
+      {/* ── Announcements ── */}
+      <div>
+        <DashboardAnnouncements />
       </div>
 
-      <Card className="rounded-2xl border border-black/5 bg-white/70 [@supports(backdrop-filter:blur(0))]:backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_10px_30px_rgba(0,0,0,0.06)]">
-        <CardHeader className="flex flex-col gap-1">
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="size-5" />
-            Recent Activity
-          </CardTitle>
-          <div className="text-sm text-muted-foreground">Latest updates from your attendance and delivery</div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="py-6 text-sm text-muted-foreground">Loading...</div>
-          ) : recentActivity.length === 0 ? (
-            <div className="py-6 text-sm text-muted-foreground">No activity yet.</div>
-          ) : (
-            <div className="space-y-4">
-              {recentActivity.map((a, idx) => (
-                <div key={a.id}>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                    <div>
-                      <div className="text-sm font-semibold">{a.title}</div>
-                      <div className="mt-0.5 text-sm text-muted-foreground">{a.subtitle}</div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                      <Badge
-                        variant="outline"
-                        className={`rounded-xl ${
-                          a.variant === "success"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : a.variant === "warning"
-                              ? "border-amber-200 bg-amber-50 text-amber-800"
-                              : "border-sky-200 bg-sky-50 text-sky-700"
-                        }`}
-                      >
-                        {a.variant === "success" ? "Done" : a.variant === "warning" ? "Attention" : "Update"}
-                      </Badge>
-                      <div className="text-xs text-muted-foreground whitespace-nowrap">{a.time}</div>
-                    </div>
-                  </div>
-                  {idx === recentActivity.length - 1 ? null : <Separator className="mt-4" />}
-                </div>
-              ))}
+      {/* ── Attendance + Deliveries ── */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {/* Attendance */}
+        <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2.5">
+            <div className="rounded-xl bg-sky-50 p-2 text-sky-500">
+              <ClipboardCheck className="size-4" />
             </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">Attendance</p>
+              <p className="text-xs text-gray-400">{selectedDateKey}</p>
+            </div>
+          </div>
+          <div className="p-4 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4">
+              <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wide mb-1.5">Present</p>
+              <p className="text-2xl font-bold text-emerald-700 tracking-tight">
+                {isLoading ? <span className="text-emerald-200 animate-pulse">—</span> : String(totals.present)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-rose-50 border border-rose-100 p-4">
+              <p className="text-xs font-semibold text-rose-400 uppercase tracking-wide mb-1.5">Absent</p>
+              <p className="text-2xl font-bold text-rose-600 tracking-tight">
+                {isLoading ? <span className="text-rose-200 animate-pulse">—</span> : String(totals.absent)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Deliveries */}
+        <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2.5">
+            <div className="rounded-xl bg-emerald-50 p-2 text-emerald-600">
+              <Truck className="size-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">Deliveries</p>
+              <p className="text-xs text-gray-400">{selectedDateKey}</p>
+            </div>
+          </div>
+          <div className="p-4">
+            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4">
+              <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wide mb-1.5">Records</p>
+              <p className="text-2xl font-bold text-emerald-700 tracking-tight">
+                {isLoading ? <span className="text-emerald-200 animate-pulse">—</span> : String(totals.deliveries)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Recent Activity ── */}
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2.5">
+          <div className="rounded-xl bg-gray-100 p-2 text-gray-500">
+            <Activity className="size-4" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-800">Recent Activity</p>
+            <p className="text-xs text-gray-400">Latest updates from your attendance and delivery</p>
+          </div>
+        </div>
+
+        <div className="divide-y divide-gray-50">
+          {isLoading ? (
+            <div className="px-5 py-10 text-sm text-gray-400 text-center">Loading...</div>
+          ) : recentActivity.length === 0 ? (
+            <div className="px-5 py-10 text-sm text-gray-400 text-center">No activity yet.</div>
+          ) : (
+            recentActivity.map((a) => (
+              <div key={a.id} className="flex items-start justify-between gap-4 px-5 py-3.5 hover:bg-gray-50/60 transition-colors">
+                <div className="flex items-start gap-3 min-w-0">
+                  {/* Dot indicator */}
+                  <div className={`mt-1.5 size-2 rounded-full flex-shrink-0 ${
+                    a.variant === "success" ? "bg-emerald-400" :
+                    a.variant === "warning" ? "bg-amber-400" :
+                    "bg-sky-400"
+                  }`} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-800">{a.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">{a.subtitle}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${
+                    a.variant === "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : a.variant === "warning"
+                        ? "border-amber-200 bg-amber-50 text-amber-700"
+                        : "border-sky-200 bg-sky-50 text-sky-700"
+                  }`}>
+                    {a.variant === "success" ? "Done" : a.variant === "warning" ? "Attention" : "Update"}
+                  </span>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">{a.time}</span>
+                </div>
+              </div>
+            ))
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </motion.div>
   )
 }

@@ -312,11 +312,14 @@ async function apiFetchNoJson(path: string, init?: RequestInit) {
     },
   })
 
-  const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    throw new Error((data as any)?.message || "Request failed")
+    const msg = await readErrorMessage(res)
+    throw new Error(`${msg} (${res.status})`)
   }
-  return data
+
+  const text = await res.text().catch(() => "")
+  if (!text) return {}
+  return JSON.parse(text)
 }
 
 type DeliveryImageDto = {
@@ -355,6 +358,27 @@ function getAuthToken(): string | null {
     return parsed?.token || null
   } catch {
     return null
+  }
+}
+
+async function readErrorMessage(res: Response): Promise<string> {
+  try {
+    const text = await res.text()
+    if (!text) return `Request failed (${res.status})`
+
+    try {
+      const data = JSON.parse(text) as any
+      const msg = (data?.message || data?.error || "").toString().trim()
+      if (msg) return msg
+    } catch {
+      // ignore JSON parse
+    }
+
+    const trimmed = text.toString().trim()
+    if (!trimmed) return `Request failed (${res.status})`
+    return trimmed.length > 200 ? trimmed.slice(0, 200) : trimmed
+  } catch {
+    return `Request failed (${res.status})`
   }
 }
 
@@ -406,11 +430,14 @@ async function apiFetchFormData(path: string, formData: FormData) {
     body: formData,
   })
 
-  const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    throw new Error((data as any)?.message || "Request failed")
+    const msg = await readErrorMessage(res)
+    throw new Error(`${msg} (${res.status})`)
   }
-  return data
+
+  const text = await res.text().catch(() => "")
+  if (!text) return {}
+  return JSON.parse(text)
 }
 
 const STATUS_OPTIONS: Array<{
@@ -444,6 +471,8 @@ const STATUS_OPTIONS: Array<{
     badgeClass: "bg-rose-50 text-rose-700 border border-rose-200",
   },
 ]
+
+const STATUS_OPTIONS_FOR_SELECTION = STATUS_OPTIONS.filter((s) => s.value !== "Pending")
 
 function statusMeta(status: DeliveryStatus) {
   return STATUS_OPTIONS.find((s) => s.value === status) ?? STATUS_OPTIONS[0]
@@ -844,10 +873,17 @@ export function UserDelivery() {
   ) => {
     if (!files || files.length === 0) return
 
-    const MAX_BYTES = 2 * 1024 * 1024
+    const MAX_IMAGES_PER_CATEGORY = 15
+    const MAX_BYTES = Math.round(1.5 * 1024 * 1024)
 
     const inputFiles = Array.from(files).filter((f) => f.type.startsWith("image/"))
     if (!inputFiles.length) return
+
+    const existingCount = recordsByDate[dateKey]?.[categoryKey]?.images?.length || 0
+    if (existingCount + inputFiles.length > MAX_IMAGES_PER_CATEGORY) {
+      toast.error("You can only submit up to 15 images per item.")
+      return
+    }
 
     const compressOne = async (file: File, index: number, total: number): Promise<File> => {
       if (file.size <= MAX_BYTES) return file
@@ -856,7 +892,7 @@ export function UserDelivery() {
       setCompressText(`Compressing image ${index + 1} of ${total}…`)
 
       const options = {
-        maxSizeMB: 2,
+        maxSizeMB: 1.5,
         maxWidthOrHeight: 1920,
         useWebWorker: true,
         initialQuality: 0.92,
@@ -1270,7 +1306,7 @@ export function UserDelivery() {
                                 <div className="grid gap-3">
                                   <div className="text-sm font-semibold">Status</div>
                                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                    {STATUS_OPTIONS.map((opt) => {
+                                    {STATUS_OPTIONS_FOR_SELECTION.map((opt) => {
                                       const Icon = opt.icon
                                       const isActive = item.status === opt.value
                                       return (
@@ -2587,7 +2623,7 @@ export function UserDelivery() {
             </div>
             <div className="mt-4 text-base font-semibold">Optimizing image</div>
             <div className="mt-1 text-sm text-muted-foreground">
-              {compressText || "Compressing to meet the 2MB limit…"}
+              {compressText || "Compressing to meet the 1.5MB limit…"}
             </div>
             <div className="mt-4 w-full rounded-xl border bg-muted/10 p-3 text-xs text-muted-foreground">
               Please wait. This keeps the upload fast and compatible.
