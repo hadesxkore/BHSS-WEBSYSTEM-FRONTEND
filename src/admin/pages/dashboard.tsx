@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { motion } from "motion/react"
 import ReactApexChart from "react-apexcharts"
+import { IdleScreensaver } from "../components/idle-screensaver"
 import {
   Area,
   AreaChart,
@@ -17,7 +18,6 @@ import {
 import {
   Activity,
   BadgeCheck,
-  Clock,
   Megaphone,
   PackageCheck,
   School,
@@ -37,6 +37,22 @@ import {
 import { AnnouncementsFeedPage } from "@/components/announcements-feed-page"
 import { DashboardAnnouncements } from "../components/dashboard-announcements"
 import { useAdminNavStore } from "../admin-nav-store"
+
+const SCREENSAVER_IMAGES = [
+  "/images/410.jpg",
+  "/images/411.jpg",
+  "/images/444.jpg",
+  "/images/445.jpg",
+  "/images/446.jpg",
+  "/images/447.jpg",
+  "/images/448.jpg",
+  "/images/449.jpg",
+  "/images/450.jpg",
+  "/images/451.jpg",
+  "/images/452.jpg",
+  "/images/bataanlogo.png",
+  "/images/bhsslogo.png",
+] as const
 
 type ActivityItem = {
   id: string
@@ -131,22 +147,22 @@ function useBreakpoint(maxWidth: number) {
   return matches
 }
 
+const MUNICIPALITY_COLORS = [
+  "#16a34a",
+  "#0d9488",
+  "#0284c7",
+  "#7c3aed",
+  "#dc2626",
+  "#d97706",
+  "#64748b",
+]
+
 export function Dashboard() {
   const setActiveItem = useAdminNavStore((s) => s.setActiveItem)
   const isXs = useBreakpoint(420)
   const isSm = useBreakpoint(640)
 
   const [activeView, setActiveView] = useState<"dashboard" | "announcements">("dashboard")
-
-  const MUNICIPALITY_COLORS = [
-    "#16a34a",
-    "#0d9488",
-    "#0284c7",
-    "#7c3aed",
-    "#dc2626",
-    "#d97706",
-    "#64748b",
-  ]
 
   const [attendance, setAttendance] = useState<AdminAttendanceRecord[]>([])
   const [deliveries, setDeliveries] = useState<AdminDeliveryRecord[]>([])
@@ -399,27 +415,30 @@ export function Dashboard() {
   // ── Announcements view ──
   if (activeView === "announcements") {
     return (
-      <div className="space-y-4 min-w-0 overflow-x-hidden bg-gradient-to-br from-green-50 via-white to-teal-50/40 min-h-screen px-4 py-8 sm:px-6"
-        style={{ fontFamily: "'Plus Jakarta Sans', 'Nunito', sans-serif" }}
-      >
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-gray-800 sm:text-3xl"
-              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-              Announcements
-            </h1>
-            <div className="mt-1 text-sm text-gray-500">Dashboard announcements feed</div>
+      <IdleScreensaver images={SCREENSAVER_IMAGES} idleMs={30000} intervalMs={6000}>
+        <div
+          className="space-y-4 min-w-0 overflow-x-hidden bg-gradient-to-br from-green-50 via-white to-teal-50/40 min-h-screen px-4 py-8 sm:px-6"
+          style={{ fontFamily: "'Plus Jakarta Sans', 'Nunito', sans-serif" }}
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-800"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+                Announcements
+              </h1>
+              <div className="mt-1 text-sm text-gray-500">Dashboard announcements feed</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveView("dashboard")}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm transition-all hover:border-gray-300 hover:text-gray-800"
+            >
+              ← Back to dashboard
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setActiveView("dashboard")}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm transition-all hover:border-gray-300 hover:text-gray-800"
-          >
-            ← Back to dashboard
-          </button>
+          <AnnouncementsFeedPage mode="admin" />
         </div>
-        <AnnouncementsFeedPage mode="admin" />
-      </div>
+      </IdleScreensaver>
     )
   }
 
@@ -432,75 +451,75 @@ export function Dashboard() {
   )
 
   return (
-    <div
-      className="space-y-6 min-w-0 overflow-x-hidden bg-gradient-to-br from-green-50 via-white to-teal-50/30 min-h-screen px-4 py-8 sm:px-6 lg:px-8"
-      style={{ fontFamily: "'Plus Jakarta Sans', 'Nunito', sans-serif" }}
+    <IdleScreensaver
+      images={SCREENSAVER_IMAGES}
+      idleMs={30000}
+      intervalMs={6000}
     >
-      {/* ── Page Header ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
-        className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
+      <div
+        className="space-y-6 min-w-0 overflow-x-hidden bg-gradient-to-br from-green-50 via-white to-teal-50/30 min-h-screen px-4 py-8 sm:px-6 lg:px-8"
+        style={{ fontFamily: "'Plus Jakarta Sans', 'Nunito', sans-serif" }}
       >
-        <div>
-          <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-green-700">
-            <Clock className="size-3" />
-            Live · This Week
-          </div>
-          <h1
-            className="text-3xl font-extrabold tracking-tight text-gray-800 sm:text-4xl"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            Dashboard
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Bataan Healthy School Setting — Admin overview
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setActiveView("announcements")}
-          className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-green-200 transition-all hover:bg-green-500 active:scale-[0.97]"
+        {/* ── Page Header ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
         >
-          <Megaphone className="size-4" />
-          Announcements
-        </button>
-      </motion.div>
+          <div>
+            <h1
+              className="text-3xl font-extrabold tracking-tight text-gray-800 sm:text-4xl"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              Dashboard
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Bataan Healthy School Setting — Admin overview
+            </p>
+          </div>
 
-      {/* ── KPI Cards ── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((k, idx) => (
-          <motion.div
-            key={k.title}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, delay: idx * 0.06 }}
+          <button
+            type="button"
+            onClick={() => setActiveView("announcements")}
+            className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-green-200 transition-all hover:bg-green-500 active:scale-[0.97]"
           >
-            <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{k.title}</p>
-                  <p className="mt-2 text-3xl font-extrabold tracking-tight text-gray-800">{k.value}</p>
-                  <p className="mt-1 text-xs text-gray-400">Compared to last period</p>
-                </div>
-                <div className={`grid size-11 place-items-center rounded-xl ${k.bg} ${k.color}`}>
-                  <k.icon className="size-5" />
+            <Megaphone className="size-4" />
+            Announcements
+          </button>
+        </motion.div>
+
+        {/* ── KPI Cards ── */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {kpis.map((kpi) => (
+            <motion.div
+              key={kpi.title}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22 }}
+            >
+              <div className={`rounded-2xl border ${kpi.border} bg-white p-4 shadow-sm sm:p-5`}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">{kpi.title}</p>
+                    <p className="mt-1 text-2xl font-extrabold text-gray-800 sm:text-3xl">
+                      {isLoading ? <span className="animate-pulse text-gray-300">—</span> : kpi.value}
+                    </p>
+                  </div>
+                  <div className={`grid size-9 place-items-center rounded-xl ${kpi.bg} ${kpi.color}`}>
+                    <kpi.icon className="size-5" />
+                  </div>
                 </div>
               </div>
-              {/* subtle colored bar at bottom */}
-              <div className={`absolute bottom-0 left-0 h-0.5 w-full ${k.bg}`} />
-            </div>
-          </motion.div>
-        ))}
-      </div>
+            </motion.div>
+          ))}
+        </div>
 
-      {/* ── Dashboard Announcements ── */}
-      <DashboardAnnouncements onViewAll={() => setActiveView("announcements")} />
+        {/* ── Dashboard Announcements ── */}
+        <DashboardAnnouncements />
 
-      {/* ── Delivery Concerns ── */}
-      {concernDeliveries.length > 0 && (
+        {/* ── Delivery Concerns ── */}
+        {concernDeliveries.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -976,5 +995,6 @@ export function Dashboard() {
         </motion.div>
       </div>
     </div>
+  </IdleScreensaver>
   )
 }

@@ -62,6 +62,14 @@ type AdminFileSubmissionRow = {
   }
 }
 
+const FRUITS_VEG_FOLDER = "Fruits & Vegetables"
+
+function normalizeFolderForClient(folder: unknown): string {
+  const raw = String(folder || "")
+  if (raw === "Fruits" || raw === "Vegetables") return FRUITS_VEG_FOLDER
+  return raw
+}
+
 const FOLDER_BADGE_CLASSES = [
   "bg-sky-50 text-sky-800 border-sky-200",
   "bg-emerald-50 text-emerald-800 border-emerald-200",
@@ -316,7 +324,7 @@ export function AdminFileSubmissions() {
   const folderPills = useMemo(() => {
     const set = new Set<string>()
     for (const r of rowsForSelectedSchool) {
-      const f = String(r.folder || "").trim()
+      const f = normalizeFolderForClient(r.folder).trim()
       if (f) set.add(f)
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b))
@@ -328,7 +336,7 @@ export function AdminFileSubmissions() {
     let out = rowsForSelectedSchool
 
     if (selectedFolder !== "all") {
-      out = out.filter((r) => String(r.folder || "") === selectedFolder)
+      out = out.filter((r) => normalizeFolderForClient(r.folder) === selectedFolder)
     }
 
     const q = deferredSearch.trim().toLowerCase()
@@ -336,7 +344,7 @@ export function AdminFileSubmissions() {
       out = out.filter((r) => {
         return (
           String(r.name || "").toLowerCase().includes(q) ||
-          String(r.folder || "").toLowerCase().includes(q) ||
+          normalizeFolderForClient(r.folder).toLowerCase().includes(q) ||
           String(r.description || "").toLowerCase().includes(q) ||
           String(r.coordinator?.name || "").toLowerCase().includes(q)
         )
@@ -451,7 +459,7 @@ export function AdminFileSubmissions() {
   const folderBreakdown = useMemo(() => {
     const map = new Map<string, number>()
     for (const r of rowsForSelectedSchool) {
-      const f = String(r.folder || "").trim() || "Others"
+      const f = normalizeFolderForClient(r.folder).trim() || "Others"
       map.set(f, (map.get(f) || 0) + 1)
     }
     return Array.from(map.entries())

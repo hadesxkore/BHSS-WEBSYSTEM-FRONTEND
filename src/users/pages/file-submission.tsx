@@ -54,8 +54,7 @@ type AuthState = {
 }
 
 type FolderType =
-  | "Fruits"
-  | "Vegetables"
+  | "Fruits & Vegetables"
   | "Meat"
   | "NutriBun"
   | "Patties"
@@ -78,9 +77,11 @@ type UploadedFile = {
   url?: string
 }
 
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png"] as const
+const MAX_UPLOAD_FILES = 15
+
 const FOLDERS: FolderType[] = [
-  "Fruits",
-  "Vegetables",
+  "Fruits & Vegetables",
   "Meat",
   "NutriBun",
   "Patties",
@@ -93,8 +94,7 @@ const FOLDERS: FolderType[] = [
 ]
 
 const FOLDER_COLORS: Record<FolderType, string> = {
-  Fruits: "bg-orange-100 text-orange-600",
-  Vegetables: "bg-green-100 text-green-600",
+  "Fruits & Vegetables": "bg-orange-100 text-orange-600",
   Meat: "bg-red-100 text-red-600",
   NutriBun: "bg-yellow-100 text-yellow-600",
   Patties: "bg-amber-100 text-amber-600",
@@ -183,8 +183,9 @@ export function FileSubmission() {
     setIsLoading(true)
     try {
       const dateStr = format(selectedDate, "yyyy-MM-dd")
+      const folderParam = currentFolder ? `&folder=${encodeURIComponent(currentFolder)}` : ""
       const data = await apiFetch(
-        `/api/file-submissions?date=${dateStr}${currentFolder ? `&folder=${currentFolder}` : ""}`
+        `/api/file-submissions?date=${dateStr}${folderParam}`
       )
       setUploadedFiles(data.files || [])
     } catch (err) {
@@ -206,6 +207,17 @@ export function FileSubmission() {
 
   const handleUpload = async () => {
     if (files.length === 0 || !currentFolder) return
+
+    if (files.length > MAX_UPLOAD_FILES) {
+      toast.error(`You can only upload up to ${MAX_UPLOAD_FILES} images at a time`)
+      return
+    }
+
+    const invalidFiles = files.filter((f) => !ALLOWED_IMAGE_TYPES.includes(f.type as any))
+    if (invalidFiles.length > 0) {
+      toast.error("Only JPEG/PNG images are allowed")
+      return
+    }
 
     setIsUploading(true)
     try {
@@ -293,10 +305,29 @@ export function FileSubmission() {
     const selectedFiles = Array.from(e.target.files || [])
     if (!selectedFiles.length) return
 
-    const MAX_FILE_BYTES = 10 * 1024 * 1024
-    const MAX_IMAGE_BYTES = 2 * 1024 * 1024
+    const remainingSlots = Math.max(0, MAX_UPLOAD_FILES - files.length)
+    if (selectedFiles.length > remainingSlots) {
+      toast.error(`You can only upload up to ${MAX_UPLOAD_FILES} images at a time`)
+    }
 
-    const validFiles = selectedFiles.filter((file) => {
+    const filesToProcess = selectedFiles.slice(0, remainingSlots)
+    if (filesToProcess.length === 0) {
+      try {
+        e.target.value = ""
+      } catch {
+        // ignore
+      }
+      return
+    }
+
+    const MAX_FILE_BYTES = 10 * 1024 * 1024
+    const MAX_IMAGE_BYTES = 1.5 * 1024 * 1024
+
+    const validFiles = filesToProcess.filter((file) => {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type as any)) {
+        toast.error(`${file.name} is not a JPEG/PNG image`)
+        return false
+      }
       if (file.size > MAX_FILE_BYTES) {
         toast.error(`${file.name} is too large (max 10MB)`)
         return false
@@ -305,7 +336,6 @@ export function FileSubmission() {
     })
 
     const imageFiles = validFiles.filter((f) => f.type.startsWith("image/"))
-    const otherFiles = validFiles.filter((f) => !f.type.startsWith("image/"))
 
     const compressOne = async (file: File, index: number, total: number): Promise<File> => {
       if (file.size <= MAX_IMAGE_BYTES) return file
@@ -314,7 +344,7 @@ export function FileSubmission() {
       setCompressText(`Compressing image ${index + 1} of ${total}…`)
 
       const options = {
-        maxSizeMB: 2,
+        maxSizeMB: 1.5,
         maxWidthOrHeight: 1920,
         useWebWorker: true,
         initialQuality: 0.92,
@@ -340,7 +370,7 @@ export function FileSubmission() {
         processedImages.push(await compressOne(f, i, imageFiles.length))
       }
 
-      setFiles((prev) => [...prev, ...otherFiles, ...processedImages])
+      setFiles((prev) => [...prev, ...processedImages])
     } catch (err: any) {
       toast.error(err?.message || "Failed to process image")
     } finally {
@@ -593,7 +623,7 @@ export function FileSubmission() {
             </div>
             <h3 className="text-base sm:text-lg font-semibold">No files yet</h3>
             <p className="mt-2 text-center text-sm text-muted-foreground max-w-xs sm:max-w-md">
-              This folder is empty. Click "Upload" to add documents or images.
+              This folder is empty. Click "Upload" to add images.
             </p>
             <Button
               onClick={() => setIsUploadDialogOpen(true)}
@@ -721,7 +751,7 @@ export function FileSubmission() {
               Upload to {currentFolder}
             </DialogTitle>
             <DialogDescription className="text-xs sm:text-sm">
-              Select multiple files or images to upload
+              Select multiple images (JPEG/PNG) to upload
             </DialogDescription>
           </DialogHeader>
 
@@ -734,7 +764,20 @@ export function FileSubmission() {
               onDrop={(e) => {
                 e.preventDefault()
                 const droppedFiles = Array.from(e.dataTransfer.files)
-                const validFiles = droppedFiles.filter((file) => {
+
+                const remainingSlots = Math.max(0, MAX_UPLOAD_FILES - files.length)
+                if (droppedFiles.length > remainingSlots) {
+                  toast.error(`You can only upload up to ${MAX_UPLOAD_FILES} images at a time`)
+                }
+
+                const filesToProcess = droppedFiles.slice(0, remainingSlots)
+                if (filesToProcess.length === 0) return
+
+                const validFiles = filesToProcess.filter((file) => {
+                  if (!ALLOWED_IMAGE_TYPES.includes(file.type as any)) {
+                    toast.error(`${file.name} is not a JPEG/PNG image`)
+                    return false
+                  }
                   if (file.size > 10 * 1024 * 1024) {
                     toast.error(`${file.name} is too large (max 10MB)`)
                     return false
@@ -747,7 +790,7 @@ export function FileSubmission() {
               <div className="rounded-full bg-emerald-100 p-3 sm:p-4">
                 <Upload className="size-6 sm:size-8 text-emerald-600" />
               </div>
-              <p className="mt-3 sm:mt-4 text-sm font-medium">Drag & drop files here</p>
+              <p className="mt-3 sm:mt-4 text-sm font-medium">Drag & drop images here</p>
               <p className="text-xs text-muted-foreground">or click to browse</p>
               <input
                 ref={fileInputRef}
@@ -755,7 +798,7 @@ export function FileSubmission() {
                 multiple
                 className="hidden"
                 onChange={handleFileSelect}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.zip"
+                accept="image/jpeg,image/png"
               />
             </div>
 
