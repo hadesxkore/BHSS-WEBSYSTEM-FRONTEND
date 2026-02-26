@@ -368,6 +368,9 @@ export function UserSidebarLayout({
   const [announcementsBadgeCount, setAnnouncementsBadgeCount] = useState(0)
   const [upcomingEventsBadgeCount, setUpcomingEventsBadgeCount] = useState(0)
 
+  const [updateAvailable, setUpdateAvailable] = useState(false)
+  const [serverInstanceId, setServerInstanceId] = useState<string | null>(null)
+
   const [authUser, setAuthUser] = useState<AuthState["user"] | null>(() => {
     return getAuth()?.user || null
   })
@@ -589,6 +592,24 @@ export function UserSidebarLayout({
 
     socket.on("connect_error", (err) => {
       console.error("User socket connect_error", err)
+    })
+
+    socket.on("server:instance", (payload: any) => {
+      const nextId = String(payload?.instanceId || "").trim()
+      if (!nextId) return
+
+      setServerInstanceId(nextId)
+
+      try {
+        const storageKey = "bhss_server_instance_id"
+        const prevId = String(localStorage.getItem(storageKey) || "").trim()
+        if (prevId && prevId !== nextId) {
+          setUpdateAvailable(true)
+        }
+        localStorage.setItem(storageKey, nextId)
+      } catch {
+        // ignore
+      }
     })
 
     socket.on("event:created", (payload: EventCreatedPayload) => {
@@ -890,6 +911,63 @@ export function UserSidebarLayout({
       className="bg-[#f5faf7] has-data-[variant=inset]:!bg-[#f5faf7]"
       style={{ fontFamily: '"Artico Soft-Medium","Mona Sans","Helvetica Neue",Helvetica,Arial,sans-serif' }}
     >
+      <AnimatePresence>
+        {updateAvailable && (
+          <motion.div
+            key="update-available"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[9999] grid place-items-center bg-black/40 p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.22 }}
+              className="w-full max-w-md rounded-3xl border border-emerald-100 bg-white p-5 shadow-xl"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-gray-900">New update available</div>
+                  <div className="mt-1 text-xs text-gray-500">
+                    The system was updated. Refresh to load the latest version.
+                  </div>
+                  {serverInstanceId ? (
+                    <div className="mt-2 text-[11px] text-gray-400 truncate">Instance: {serverInstanceId}</div>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUpdateAvailable(false)}
+                  className="rounded-xl px-2 py-1 text-sm text-gray-400 hover:text-gray-600"
+                  aria-label="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  className="rounded-xl"
+                  onClick={() => setUpdateAvailable(false)}
+                >
+                  Later
+                </Button>
+                <Button
+                  className="rounded-xl bg-emerald-600 hover:bg-emerald-500"
+                  onClick={() => window.location.reload()}
+                >
+                  Refresh
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Sidebar
         collapsible="icon"
         variant="inset"

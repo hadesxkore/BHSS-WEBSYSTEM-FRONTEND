@@ -99,27 +99,27 @@ function statusBadge(status: DeliveryStatus) {
     return {
       label: "Delivered",
       icon: CheckCircle2,
-      badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+      badgeClass: "bg-green-50 text-green-700 border border-green-200 font-medium",
     }
   }
   if (status === "Delayed") {
     return {
       label: "Delayed",
       icon: TriangleAlert,
-      badgeClass: "bg-amber-50 text-amber-800 border border-amber-200",
+      badgeClass: "bg-amber-50 text-amber-700 border border-amber-200 font-medium",
     }
   }
   if (status === "Cancelled") {
     return {
       label: "Cancelled",
       icon: XCircle,
-      badgeClass: "bg-rose-50 text-rose-700 border border-rose-200",
+      badgeClass: "bg-red-50 text-red-600 border border-red-200 font-medium",
     }
   }
   return {
     label: "Pending",
     icon: FileText,
-    badgeClass: "bg-muted text-foreground border",
+    badgeClass: "bg-teal-50 text-teal-700 border border-teal-200 font-medium",
   }
 }
 
@@ -132,16 +132,16 @@ function CountBadge({
 }) {
   const cls =
     variant === "delivered"
-      ? "bg-emerald-100 text-emerald-800"
+      ? "bg-green-100 text-green-800 font-semibold"
       : variant === "delayed"
-        ? "bg-amber-100 text-amber-900"
+        ? "bg-amber-100 text-amber-800 font-semibold"
         : variant === "cancelled"
-          ? "bg-rose-100 text-rose-800"
-          : "bg-slate-100 text-slate-800"
+          ? "bg-red-100 text-red-700 font-semibold"
+          : "bg-teal-100 text-teal-800 font-semibold"
 
   return (
     <span
-      className={`inline-flex min-w-[2.25rem] items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${cls}`}
+      className={`inline-flex min-w-[2.25rem] items-center justify-center rounded-full px-2 py-0.5 text-xs tabular-nums ${cls}`}
     >
       {value}
     </span>
@@ -298,7 +298,7 @@ export function AdminDeliverySummary() {
         animations: { enabled: true, speed: 600 },
       },
       labels: statusLabels,
-      colors: ["#10b981", "#64748b", "#f59e0b", "#f43f5e"],
+      colors: ["#16a34a", "#0d9488", "#d97706", "#dc2626"],
       legend: { position: "bottom" as const },
       dataLabels: { enabled: true },
       stroke: { width: 2 },
@@ -360,7 +360,7 @@ export function AdminDeliverySummary() {
         },
       },
       tooltip: { enabled: true },
-      colors: ["#2563eb"],
+      colors: ["#16a34a"],
       grid: { strokeDashArray: 4 },
     }
   }, [topCategories])
@@ -775,16 +775,21 @@ export function AdminDeliverySummary() {
   }, [scopeMode, selectedMunicipalities])
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="space-y-6 px-1">
+      {/* ── Header ── */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Truck className="size-6" />
-            <h1 className="text-3xl font-bold tracking-tight">Delivery Summary</h1>
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-green-100 p-2.5 shadow-sm ring-1 ring-green-200">
+              <Truck className="size-5 text-green-700" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Delivery Summary</h1>
+              <p className="text-sm text-muted-foreground">
+                Filter by date range and municipality scope.
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            A dashboard overview of delivery uploads. Filter by date range and municipality scope.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -792,7 +797,7 @@ export function AdminDeliverySummary() {
           <img src="/images/bataanlogo.png" alt="Bataan Logo" className="h-10 w-10 object-contain" />
           <Button
             type="button"
-            className="rounded-xl"
+            className="rounded-xl bg-green-700 hover:bg-green-800 text-white shadow-sm"
             onClick={buildPdf}
             disabled={isGeneratingPdf}
           >
@@ -841,13 +846,11 @@ export function AdminDeliverySummary() {
         </DialogContent>
       </Dialog>
 
-      <Card>
-        <CardHeader className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="size-5 text-muted-foreground" />
-              Scope & Filters
-            </CardTitle>
+      <Card className="rounded-2xl border shadow-sm">
+        <CardHeader className="space-y-3 pb-4">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="size-4 text-green-600" />
+            <CardTitle className="text-sm font-semibold text-neutral-700">Scope &amp; Filters</CardTitle>
           </div>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-12 lg:items-end">
@@ -972,7 +975,7 @@ export function AdminDeliverySummary() {
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search"
+                  placeholder="Search…"
                   className="h-10 rounded-xl pl-9"
                 />
               </div>
@@ -994,50 +997,54 @@ export function AdminDeliverySummary() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="relative overflow-hidden rounded-2xl border border-black/5 bg-white/60 [@supports(backdrop-filter:blur(0))]:backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_6px_18px_rgba(0,0,0,0.06)]">
+        <Card className="relative overflow-hidden rounded-2xl border bg-white shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-neutral-500">Total Records</CardTitle>
-            <div className="rounded-2xl border border-black/5 bg-white/70 p-2 shadow-sm">
-              <Truck className="size-5" />
+            <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Total Records</CardTitle>
+            <div className="rounded-xl bg-muted p-2">
+              <Truck className="size-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight text-neutral-900">{summary.total}</div>
-            <p className="text-xs text-neutral-500 mt-1">Within the selected filters</p>
+            <div className="text-4xl font-bold tracking-tight text-neutral-900">{summary.total}</div>
+            <p className="text-xs text-muted-foreground mt-1">Within the selected filters</p>
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden rounded-2xl border border-black/5 bg-white/60 [@supports(backdrop-filter:blur(0))]:backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_6px_18px_rgba(0,0,0,0.06)]">
+        <Card className="relative overflow-hidden rounded-2xl border bg-white shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-neutral-500">Coverage</CardTitle>
-            <div className="rounded-2xl border border-black/5 bg-white/70 p-2 shadow-sm">
-              <ClipboardList className="size-5" />
+            <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Coverage</CardTitle>
+            <div className="rounded-xl bg-muted p-2">
+              <ClipboardList className="size-4 text-muted-foreground" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight text-neutral-900">{summary.uniqueMunicipalityCount}</div>
-            <p className="text-xs text-neutral-500 mt-1">Municipalities (Schools: {summary.uniqueSchoolCount})</p>
+            <div className="text-4xl font-bold tracking-tight text-neutral-900">{summary.uniqueMunicipalityCount}</div>
+            <p className="text-xs text-muted-foreground mt-1">Municipalities · {summary.uniqueSchoolCount} Schools</p>
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden rounded-2xl border border-black/5 bg-white/60 [@supports(backdrop-filter:blur(0))]:backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_6px_18px_rgba(0,0,0,0.06)]">
+        <Card className="relative overflow-hidden rounded-2xl border border-green-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 to-transparent pointer-events-none" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-neutral-500">Delivered</CardTitle>
-            <div className="rounded-2xl border border-black/5 bg-white/70 p-2 shadow-sm">
-              <CheckCircle2 className="size-5" />
+            <CardTitle className="text-xs font-semibold uppercase tracking-widest text-green-600">Delivered</CardTitle>
+            <div className="rounded-xl bg-green-100 p-2 ring-1 ring-green-200">
+              <CheckCircle2 className="size-4 text-green-600" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight text-neutral-900">{summary.delivered}</div>
-            <p className="text-xs text-neutral-500 mt-1">Delivered vs Pending: {summary.pending}</p>
+            <div className="text-4xl font-bold tracking-tight text-green-800">{summary.delivered}</div>
+            <p className="text-xs text-green-600/60 mt-1">Pending: {summary.pending}</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Status Breakdown</CardTitle>
+        <Card className="rounded-2xl border bg-white shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+              <span className="inline-block size-2 rounded-full bg-green-500" />
+              Status Breakdown
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
@@ -1081,9 +1088,12 @@ export function AdminDeliverySummary() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Categories</CardTitle>
+        <Card className="rounded-2xl border bg-white shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+              <span className="inline-block size-2 rounded-full bg-green-500" />
+              Top Categories
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {topCategories.length === 0 ? (
@@ -1104,11 +1114,14 @@ export function AdminDeliverySummary() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="space-y-1">
-          <CardTitle>Items / Equipment (Vertical List)</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Grouped per date in the selected range (so you can see what items were delivered per day).
+      <Card className="rounded-2xl border bg-white shadow-sm">
+        <CardHeader className="space-y-1 pb-3">
+          <CardTitle className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+            <span className="inline-block size-2 rounded-full bg-green-500" />
+            Items / Equipment — Vertical List
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Grouped per date in the selected range — view items delivered per day.
           </p>
         </CardHeader>
         <CardContent>
@@ -1123,33 +1136,33 @@ export function AdminDeliverySummary() {
               </div>
             ) : (
               categoryTableByDateBySchool.map((block) => (
-                <div key={block.dateKey} className="rounded-xl border overflow-hidden">
-                  <div className="flex items-center justify-between gap-3 bg-muted/30 px-4 py-3">
-                    <div className="font-semibold">{formatPrettyDate(block.dateKey)}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {block.schools.length} schools
+                <div key={block.dateKey} className="rounded-2xl border overflow-hidden">
+                  <div className="flex items-center justify-between gap-3 bg-green-50 px-4 py-3 border-b">
+                    <div className="font-semibold text-neutral-800 text-sm">{formatPrettyDate(block.dateKey)}</div>
+                    <div className="text-xs text-muted-foreground bg-white border px-2 py-0.5 rounded-full">
+                      {block.schools.length} school{block.schools.length !== 1 ? "s" : ""}
                     </div>
                   </div>
 
-                  <div className="p-4 space-y-4">
+                  <div className="p-3 space-y-3">
                     {block.schools.map((s) => (
                       <div key={s.schoolLabel} className="rounded-xl border overflow-hidden">
-                        <div className="flex items-center justify-between gap-3 bg-muted/20 px-4 py-3">
-                          <div className="font-medium">{s.schoolLabel}</div>
+                        <div className="flex items-center justify-between gap-3 bg-muted/30 px-4 py-2.5 border-b">
+                          <div className="font-medium text-neutral-700 text-sm">{s.schoolLabel}</div>
                           <div className="text-xs text-muted-foreground">
-                            {s.categories.length} categories
+                            {s.categories.length} {s.categories.length === 1 ? "category" : "categories"}
                           </div>
                         </div>
 
                         <Table>
                           <TableHeader>
                             <TableRow className="bg-muted/40 hover:bg-muted/40">
-                              <TableHead>Category</TableHead>
-                              <TableHead className="text-right">Total</TableHead>
-                              <TableHead className="text-right">Delivered</TableHead>
-                              <TableHead className="text-right">Pending</TableHead>
-                              <TableHead className="text-right">Delayed</TableHead>
-                              <TableHead className="text-right">Cancelled</TableHead>
+                              <TableHead className="text-xs font-semibold">Category</TableHead>
+                              <TableHead className="text-right text-xs font-semibold">Total</TableHead>
+                              <TableHead className="text-right text-xs font-semibold">Delivered</TableHead>
+                              <TableHead className="text-right text-xs font-semibold">Pending</TableHead>
+                              <TableHead className="text-right text-xs font-semibold">Delayed</TableHead>
+                              <TableHead className="text-right text-xs font-semibold">Cancelled</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1164,9 +1177,9 @@ export function AdminDeliverySummary() {
                               </TableRow>
                             ) : (
                               s.categories.map((c) => (
-                                <TableRow key={c.categoryLabel}>
-                                  <TableCell className="font-medium">{c.categoryLabel}</TableCell>
-                                  <TableCell className="text-right tabular-nums">{c.total}</TableCell>
+                                <TableRow key={c.categoryLabel} className="hover:bg-muted/20 transition-colors">
+                                  <TableCell className="font-medium text-neutral-800 text-sm">{c.categoryLabel}</TableCell>
+                                  <TableCell className="text-right tabular-nums text-sm font-semibold">{c.total}</TableCell>
                                   <TableCell className="text-right">
                                     <CountBadge value={c.delivered} variant="delivered" />
                                   </TableCell>
