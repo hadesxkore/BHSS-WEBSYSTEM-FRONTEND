@@ -36,14 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+
 
 type DeliveryStatus = "Pending" | "Delivered" | "Delayed" | "Cancelled"
 
@@ -133,9 +126,8 @@ const LazyImage = ({
           alt={alt}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          className={`transition-opacity duration-300 ${
-            status === "loaded" ? "opacity-100" : "opacity-0"
-          } ${className ?? ""}`}
+          className={`transition-opacity duration-300 ${status === "loaded" ? "opacity-100" : "opacity-0"
+            } ${className ?? ""}`}
           onLoad={() => setStatus("loaded")}
           onError={() => setStatus("error")}
         />
@@ -353,9 +345,9 @@ async function apiFetch(path: string) {
 
 function statusMeta(status: DeliveryStatus) {
   if (status === "Delivered") return { label: "Delivered", icon: CheckCircle2, badgeClass: "bg-green-50 text-green-700 border border-green-200" }
-  if (status === "Delayed")   return { label: "Delayed",   icon: TriangleAlert, badgeClass: "bg-amber-50 text-amber-700 border border-amber-200" }
-  if (status === "Cancelled") return { label: "Cancelled", icon: XCircle,       badgeClass: "bg-red-50 text-red-600 border border-red-200" }
-  return                             { label: "Pending",   icon: Clock,          badgeClass: "bg-gray-100 text-gray-600 border border-gray-200" }
+  if (status === "Delayed") return { label: "Delayed", icon: TriangleAlert, badgeClass: "bg-amber-50 text-amber-700 border border-amber-200" }
+  if (status === "Cancelled") return { label: "Cancelled", icon: XCircle, badgeClass: "bg-red-50 text-red-600 border border-red-200" }
+  return { label: "Pending", icon: Clock, badgeClass: "bg-gray-100 text-gray-600 border border-gray-200" }
 }
 
 function formatDateTime(value: string) {
@@ -789,90 +781,157 @@ export function AdminDelivery() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-50/80 hover:bg-gray-50/80 border-b border-gray-100">
-                {["Date", "Municipality", "School", "HLA Manager", "Category", "Status", "Uploaded At", "Images", "Action"].map((h, i) => (
-                  <TableHead key={h} className={`text-xs font-bold uppercase tracking-wider text-gray-400 ${i === 8 ? "text-right" : ""}`}>
-                    {h}
-                  </TableHead>
+          <table className="w-full min-w-[900px] border-collapse">
+            {/* Header */}
+            <thead>
+              <tr className="border-b-2 border-gray-100 bg-gray-50/70">
+                {[
+                  { label: "Date", align: "left" },
+                  { label: "Municipality", align: "left" },
+                  { label: "School", align: "left" },
+                  { label: "HLA Manager", align: "left" },
+                  { label: "Category", align: "left" },
+                  { label: "Status", align: "left" },
+                  { label: "Uploaded At", align: "left" },
+                  { label: "Images", align: "center" },
+                  { label: "Actions", align: "right" },
+                ].map(({ label, align }) => (
+                  <th
+                    key={label}
+                    className={`py-3.5 px-5 text-[11px] font-semibold uppercase tracking-widest text-gray-400 text-${align} whitespace-nowrap`}
+                  >
+                    {label}
+                  </th>
                 ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-gray-50">
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="py-16 text-center">
-                    <div className="flex flex-col items-center gap-2 text-gray-400">
-                      <div className="size-6 animate-spin rounded-full border-2 border-gray-100 border-t-green-500" />
+                <tr>
+                  <td colSpan={9} className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-2.5 text-gray-400">
+                      <div className="size-7 animate-spin rounded-full border-2 border-gray-100 border-t-green-500" />
                       <span className="text-sm">Loading records…</span>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : filteredRows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="py-16 text-center">
-                    <div className="flex flex-col items-center gap-2 text-gray-400">
-                      <Truck className="size-8 text-gray-200" />
-                      <span className="text-sm">No records found.</span>
+                <tr>
+                  <td colSpan={9} className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-3 text-gray-400">
+                      <div className="rounded-2xl bg-gray-50 p-4">
+                        <Truck className="size-8 text-gray-300" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">No records found</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Try adjusting the filters or date range</p>
+                      </div>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : (
                 pagedRows.map((r) => {
                   const meta = statusMeta(r.status)
                   const StatusIcon = meta.icon
                   const hasConcerns = Array.isArray(r.concerns) && r.concerns.length > 0
                   return (
-                    <TableRow
+                    <tr
                       key={r.id}
-                      className={`border-b border-gray-50 transition-colors ${hasConcerns ? "bg-amber-50/50 hover:bg-amber-50" : "hover:bg-gray-50/50"}`}
+                      className={`group transition-colors duration-150 ${hasConcerns
+                        ? "bg-amber-50 border-l-[3px] border-l-amber-400 hover:bg-amber-100/60"
+                        : "hover:bg-gray-50/80"
+                        }`}
                     >
-                      <TableCell className="whitespace-nowrap text-sm text-gray-700">{r.dateKey}</TableCell>
-                      <TableCell className="whitespace-nowrap text-sm text-gray-700">{r.municipality}</TableCell>
-                      <TableCell className="max-w-[220px] truncate text-sm text-gray-700">{r.school}</TableCell>
-                      <TableCell className="max-w-[180px] truncate text-sm text-gray-500">{r.hlaManagerName || "—"}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${categoryBadgeClass(r.categoryKey || r.categoryLabel)}`} title={r.categoryLabel}>
+                      {/* Date */}
+                      <td className="py-4 px-5 whitespace-nowrap">
+                        <span className="text-sm font-medium text-gray-800">{r.dateKey}</span>
+                      </td>
+
+                      {/* Municipality */}
+                      <td className="py-4 px-5 whitespace-nowrap">
+                        <span className="text-sm text-gray-600">{r.municipality}</span>
+                      </td>
+
+                      {/* School */}
+                      <td className="py-4 px-5 max-w-[220px]">
+                        <span className="block truncate text-sm text-gray-700" title={r.school}>{r.school}</span>
+                      </td>
+
+                      {/* HLA Manager */}
+                      <td className="py-4 px-5 max-w-[160px]">
+                        <span className="block truncate text-sm text-gray-500" title={r.hlaManagerName || ""}>{r.hlaManagerName || <span className="text-gray-300">—</span>}</span>
+                      </td>
+
+                      {/* Category */}
+                      <td className="py-4 px-5 whitespace-nowrap">
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold tracking-wide ${categoryBadgeClass(r.categoryKey || r.categoryLabel)}`} title={r.categoryLabel}>
                           {r.categoryLabel}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.badgeClass}`}>
-                          <StatusIcon className="size-3" />
-                          {meta.label}
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-4 px-5">
+                        <div className="flex flex-col gap-1.5 items-start">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold ${meta.badgeClass}`}>
+                            <StatusIcon className="size-3" />
+                            {meta.label}
+                          </span>
+                          {(r.status === "Cancelled" || r.status === "Delayed") && r.statusReason && (
+                            <p className="text-[11px] text-gray-400 whitespace-normal leading-snug max-w-[180px]">{r.statusReason}</p>
+                          )}
+                          {hasConcerns && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-300 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                              <TriangleAlert className="size-2.5 shrink-0" />
+                              {r.concerns.length} concern{r.concerns.length !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Uploaded At */}
+                      <td className="py-4 px-5 whitespace-nowrap">
+                        <span className="text-sm text-gray-500">{formatDateTime(r.uploadedAt)}</span>
+                      </td>
+
+                      {/* Images */}
+                      <td className="py-4 px-5 text-center">
+                        <span className={`inline-flex items-center justify-center min-w-[28px] rounded-lg px-2 py-0.5 text-xs font-semibold ${r.images.length > 0
+                          ? "bg-sky-50 text-sky-700 border border-sky-200"
+                          : "bg-gray-50 text-gray-400 border border-gray-200"
+                          }`}>
+                          {r.images.length}
                         </span>
-                        {(r.status === "Cancelled" || r.status === "Delayed") && r.statusReason && (
-                          <p className="mt-1 text-[11px] text-gray-400 whitespace-normal break-words">{r.statusReason}</p>
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm text-gray-500">{formatDateTime(r.uploadedAt)}</TableCell>
-                      <TableCell className="text-sm text-gray-700">{r.images.length}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-4 px-5 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => setViewDetails(r)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700 transition-all hover:bg-green-100"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition-all hover:border-green-300 hover:bg-green-50 hover:text-green-700 hover:shadow-none"
                           >
-                            <Eye className="size-3.5" /> Details
+                            <Eye className="size-3.5" />
+                            Details
                           </button>
                           <button
                             type="button"
                             disabled={r.images.length === 0}
                             onClick={() => { setViewImages(r); setImagePreviewIndex(null) }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 transition-all hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm transition-all hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            <ImageIcon className="size-3.5" /> Images
+                            <ImageIcon className="size-3.5" />
+                            Images
                           </button>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   )
                 })
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
 
         {/* Pagination */}
@@ -896,11 +955,10 @@ export function AdminDelivery() {
                     key={page}
                     type="button"
                     onClick={() => setCurrentPage(page)}
-                    className={`inline-flex size-8 items-center justify-center rounded-lg text-xs font-semibold transition-all ${
-                      page === currentPage
-                        ? "bg-green-600 text-white shadow-sm shadow-green-200"
-                        : "border border-gray-200 bg-white text-gray-500 hover:border-gray-300"
-                    }`}
+                    className={`inline-flex size-8 items-center justify-center rounded-lg text-xs font-semibold transition-all ${page === currentPage
+                      ? "bg-green-600 text-white shadow-sm shadow-green-200"
+                      : "border border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                      }`}
                   >
                     {page}
                   </button>

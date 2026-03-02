@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from "motion/react"
 import { io, type Socket } from "socket.io-client"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { notify } from "@/components/ui/in-app-notifications"
+import { sileo } from "sileo"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 import {
@@ -369,7 +369,6 @@ export function UserSidebarLayout({
   const [upcomingEventsBadgeCount, setUpcomingEventsBadgeCount] = useState(0)
 
   const [updateAvailable, setUpdateAvailable] = useState(false)
-  const [serverInstanceId, setServerInstanceId] = useState<string | null>(null)
 
   const [authUser, setAuthUser] = useState<AuthState["user"] | null>(() => {
     return getAuth()?.user || null
@@ -403,36 +402,36 @@ export function UserSidebarLayout({
   useEffect(() => {
     let cancelled = false
 
-    ;(async () => {
-      try {
-        const [annRes, eventsRes] = await Promise.all([
-          apiFetch("/api/announcements") as Promise<AnnouncementsListResponse>,
-          apiFetch("/api/events") as Promise<EventsListResponse>,
-        ])
+      ; (async () => {
+        try {
+          const [annRes, eventsRes] = await Promise.all([
+            apiFetch("/api/announcements") as Promise<AnnouncementsListResponse>,
+            apiFetch("/api/events") as Promise<EventsListResponse>,
+          ])
 
-        if (cancelled) return
+          if (cancelled) return
 
-        const announcements = Array.isArray((annRes as any)?.announcements) ? (annRes as any).announcements : []
-        const events = Array.isArray((eventsRes as any)?.events) ? (eventsRes as any).events : []
+          const announcements = Array.isArray((annRes as any)?.announcements) ? (annRes as any).announcements : []
+          const events = Array.isArray((eventsRes as any)?.events) ? (eventsRes as any).events : []
 
-        setAnnouncementsBadgeCount(announcements.length + events.length)
+          setAnnouncementsBadgeCount(announcements.length + events.length)
 
-        const upcoming = events.reduce((acc: number, e: any) => {
-          const dateKey = String(e?.dateKey || "")
-          const statusRaw = String(e?.status || "Scheduled")
-          const isCancelled = statusRaw === "Cancelled"
-          if (isCancelled) return acc
-          if (!isUpcomingDateKey(dateKey)) return acc
-          return acc + 1
-        }, 0)
-        setUpcomingEventsBadgeCount(upcoming)
-      } catch {
-        if (!cancelled) {
-          setAnnouncementsBadgeCount(0)
-          setUpcomingEventsBadgeCount(0)
+          const upcoming = events.reduce((acc: number, e: any) => {
+            const dateKey = String(e?.dateKey || "")
+            const statusRaw = String(e?.status || "Scheduled")
+            const isCancelled = statusRaw === "Cancelled"
+            if (isCancelled) return acc
+            if (!isUpcomingDateKey(dateKey)) return acc
+            return acc + 1
+          }, 0)
+          setUpcomingEventsBadgeCount(upcoming)
+        } catch {
+          if (!cancelled) {
+            setAnnouncementsBadgeCount(0)
+            setUpcomingEventsBadgeCount(0)
+          }
         }
-      }
-    })()
+      })()
 
     return () => {
       cancelled = true
@@ -452,45 +451,45 @@ export function UserSidebarLayout({
   useEffect(() => {
     let cancelled = false
 
-    ;(async () => {
-      try {
-        const data = (await apiFetch("/api/announcements")) as AnnouncementsListResponse
-        const list = Array.isArray(data?.announcements) ? data.announcements : []
-        if (cancelled || !list.length) return
+      ; (async () => {
+        try {
+          const data = (await apiFetch("/api/announcements")) as AnnouncementsListResponse
+          const list = Array.isArray(data?.announcements) ? data.announcements : []
+          if (cancelled || !list.length) return
 
-        setNotifications((prev) => {
-          const existingIds = new Set(prev.map((n) => n.id))
+          setNotifications((prev) => {
+            const existingIds = new Set(prev.map((n) => n.id))
 
-          const seeded: UserNotification[] = list
-            .map((a): UserNotification | null => {
-              const id = String(a?._id || a?.id || "").trim()
-              if (!id) return null
-              const title = String(a?.title || "Announcement")
-              const message = String(a?.message || "")
-              const notificationId = `announcement-${id}`
-              if (existingIds.has(notificationId)) return null
+            const seeded: UserNotification[] = list
+              .map((a): UserNotification | null => {
+                const id = String(a?._id || a?.id || "").trim()
+                if (!id) return null
+                const title = String(a?.title || "Announcement")
+                const message = String(a?.message || "")
+                const notificationId = `announcement-${id}`
+                if (existingIds.has(notificationId)) return null
 
-              const isRead = readIds.has(notificationId)
-              return {
-                id: notificationId,
-                kind: "announcement",
-                title,
-                message,
-                createdAt: a?.createdAt ? new Date(String(a.createdAt)).getTime() : Date.now(),
-                read: isRead,
-              }
-            })
-            .filter(Boolean) as UserNotification[]
+                const isRead = readIds.has(notificationId)
+                return {
+                  id: notificationId,
+                  kind: "announcement",
+                  title,
+                  message,
+                  createdAt: a?.createdAt ? new Date(String(a.createdAt)).getTime() : Date.now(),
+                  read: isRead,
+                }
+              })
+              .filter(Boolean) as UserNotification[]
 
-          seeded.sort((a, b) => b.createdAt - a.createdAt)
+            seeded.sort((a, b) => b.createdAt - a.createdAt)
 
-          if (!seeded.length) return prev
-          return [...seeded, ...prev].slice(0, 50)
-        })
-      } catch {
-        // ignore
-      }
-    })()
+            if (!seeded.length) return prev
+            return [...seeded, ...prev].slice(0, 50)
+          })
+        } catch {
+          // ignore
+        }
+      })()
 
     return () => {
       cancelled = true
@@ -510,56 +509,56 @@ export function UserSidebarLayout({
   useEffect(() => {
     let cancelled = false
 
-    ;(async () => {
-      try {
-        const data = (await apiFetch("/api/events")) as EventsListResponse
-        const events = Array.isArray(data?.events) ? data.events : []
-        if (cancelled || !events.length) return
+      ; (async () => {
+        try {
+          const data = (await apiFetch("/api/events")) as EventsListResponse
+          const events = Array.isArray(data?.events) ? data.events : []
+          if (cancelled || !events.length) return
 
-        setNotifications((prev) => {
-          const existingIds = new Set(prev.map((n) => n.id))
+          setNotifications((prev) => {
+            const existingIds = new Set(prev.map((n) => n.id))
 
-          const seeded: UserNotification[] = events
-            .map((e): UserNotification | null => {
-              const id = String(e?._id || e?.id || "").trim()
-              if (!id) return null
-              const title = String(e?.title || "New event")
-              const dateKey = String(e?.dateKey || "")
-              const startTime = String(e?.startTime || "")
-              const endTime = String(e?.endTime || "")
-              const statusRaw = String((e as any)?.status || "Scheduled")
-              const status: UserNotification["status"] =
-                statusRaw === "Cancelled" ? "Cancelled" : "Scheduled"
-              const cancelReason = String((e as any)?.cancelReason || "")
+            const seeded: UserNotification[] = events
+              .map((e): UserNotification | null => {
+                const id = String(e?._id || e?.id || "").trim()
+                if (!id) return null
+                const title = String(e?.title || "New event")
+                const dateKey = String(e?.dateKey || "")
+                const startTime = String(e?.startTime || "")
+                const endTime = String(e?.endTime || "")
+                const statusRaw = String((e as any)?.status || "Scheduled")
+                const status: UserNotification["status"] =
+                  statusRaw === "Cancelled" ? "Cancelled" : "Scheduled"
+                const cancelReason = String((e as any)?.cancelReason || "")
 
-              const notificationId = `event-${id}`
-              if (existingIds.has(notificationId)) return null
+                const notificationId = `event-${id}`
+                if (existingIds.has(notificationId)) return null
 
-              const message = `${dateKey || "(date)"} • ${formatTimeRangeAmPm(startTime, endTime)}`
-              const isRead = readIds.has(notificationId)
+                const message = `${dateKey || "(date)"} • ${formatTimeRangeAmPm(startTime, endTime)}`
+                const isRead = readIds.has(notificationId)
 
-              return {
-                id: notificationId,
-                kind: "event",
-                title,
-                message,
-                createdAt: e?.createdAt ? new Date(String(e.createdAt)).getTime() : Date.now(),
-                read: isRead,
-                status,
-                cancelReason: status === "Cancelled" ? cancelReason || undefined : undefined,
-              }
-            })
-            .filter(Boolean) as UserNotification[]
+                return {
+                  id: notificationId,
+                  kind: "event",
+                  title,
+                  message,
+                  createdAt: e?.createdAt ? new Date(String(e.createdAt)).getTime() : Date.now(),
+                  read: isRead,
+                  status,
+                  cancelReason: status === "Cancelled" ? cancelReason || undefined : undefined,
+                }
+              })
+              .filter(Boolean) as UserNotification[]
 
-          seeded.sort((a, b) => b.createdAt - a.createdAt)
+            seeded.sort((a, b) => b.createdAt - a.createdAt)
 
-          if (!seeded.length) return prev
-          return [...seeded, ...prev].slice(0, 50)
-        })
-      } catch {
-        // ignore
-      }
-    })()
+            if (!seeded.length) return prev
+            return [...seeded, ...prev].slice(0, 50)
+          })
+        } catch {
+          // ignore
+        }
+      })()
 
     return () => {
       cancelled = true
@@ -568,7 +567,7 @@ export function UserSidebarLayout({
 
   useEffect(() => {
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {})
+      Notification.requestPermission().catch(() => { })
     }
 
     const handler = () => {
@@ -597,8 +596,6 @@ export function UserSidebarLayout({
     socket.on("server:instance", (payload: any) => {
       const nextId = String(payload?.instanceId || "").trim()
       if (!nextId) return
-
-      setServerInstanceId(nextId)
 
       try {
         const storageKey = "bhss_server_instance_id"
@@ -634,11 +631,9 @@ export function UserSidebarLayout({
       const message = `${dateKey || "(date)"} • ${formatTimeRangeAmPm(startTime, endTime)}`
       const notificationId = `event-${id || `${dateKey}-${startTime}-${title}`}`
 
-      notify({
-        variant: "success",
+      sileo.success({
         title: "New event scheduled",
-        message: `${title} • ${message}`,
-        id: notificationId,
+        description: `${title} • ${message}`,
       })
 
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
@@ -689,11 +684,9 @@ export function UserSidebarLayout({
         return readReadSet(auth?.user?.id).has(notificationId)
       })()
 
-      notify({
-        variant: "info",
+      sileo.info({
         title: "New announcement",
-        message: title,
-        id: notificationId,
+        description: title,
       })
 
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
@@ -747,11 +740,9 @@ export function UserSidebarLayout({
         return readReadSet(auth?.user?.id).has(notificationId)
       })()
 
-      notify({
-        variant: "error",
+      sileo.error({
         title: "Event cancelled",
-        message: `${title} • ${message}${reason ? ` • ${reason}` : ""}`,
-        id: `${notificationId}-cancelled`,
+        description: `${title} • ${message}${reason ? ` • ${reason}` : ""}`,
       })
 
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
@@ -779,11 +770,11 @@ export function UserSidebarLayout({
             .map((n): UserNotification =>
               n.id === notificationId
                 ? {
-                    ...n,
-                    status: "Cancelled",
-                    cancelReason: reason || n.cancelReason,
-                    read: isRead ? true : false,
-                  }
+                  ...n,
+                  status: "Cancelled",
+                  cancelReason: reason || n.cancelReason,
+                  read: isRead ? true : false,
+                }
                 : n
             )
             .slice(0, 50)
@@ -813,25 +804,25 @@ export function UserSidebarLayout({
     if (!auth?.user?.id) return
 
     let cancelled = false
-    ;(async () => {
-      try {
-        const data = (await apiFetch(`/api/users/${encodeURIComponent(auth.user.id)}`)) as any
-        const u = (data as any)?.user || (data as any)
-        if (!u || cancelled) return
-        setAuthUser((prev) => ({
-          ...(prev || auth.user),
-          email: u.email ?? prev?.email ?? auth.user.email,
-          username: u.username ?? prev?.username ?? auth.user.username,
-          name: u.name ?? prev?.name ?? auth.user.name,
-          school: u.school ?? prev?.school ?? auth.user.school,
-          municipality: u.municipality ?? prev?.municipality ?? auth.user.municipality,
-          avatarUrl: u.avatarUrl ?? prev?.avatarUrl ?? (auth.user as any)?.avatarUrl,
-          hlaRoleType: u.hlaRoleType ?? prev?.hlaRoleType ?? (auth.user as any)?.hlaRoleType,
-        }))
-      } catch {
-        // ignore
-      }
-    })()
+      ; (async () => {
+        try {
+          const data = (await apiFetch(`/api/users/${encodeURIComponent(auth.user.id)}`)) as any
+          const u = (data as any)?.user || (data as any)
+          if (!u || cancelled) return
+          setAuthUser((prev) => ({
+            ...(prev || auth.user),
+            email: u.email ?? prev?.email ?? auth.user.email,
+            username: u.username ?? prev?.username ?? auth.user.username,
+            name: u.name ?? prev?.name ?? auth.user.name,
+            school: u.school ?? prev?.school ?? auth.user.school,
+            municipality: u.municipality ?? prev?.municipality ?? auth.user.municipality,
+            avatarUrl: u.avatarUrl ?? prev?.avatarUrl ?? (auth.user as any)?.avatarUrl,
+            hlaRoleType: u.hlaRoleType ?? prev?.hlaRoleType ?? (auth.user as any)?.hlaRoleType,
+          }))
+        } catch {
+          // ignore
+        }
+      })()
 
     return () => {
       cancelled = true
@@ -857,7 +848,7 @@ export function UserSidebarLayout({
             hlaRoleType: u.hlaRoleType ?? prev?.hlaRoleType ?? (auth.user as any)?.hlaRoleType,
           }))
         })
-        .catch(() => {})
+        .catch(() => { })
     }
 
     window.addEventListener("bhss_auth_updated", handler as any)
@@ -934,9 +925,6 @@ export function UserSidebarLayout({
                   <div className="mt-1 text-xs text-gray-500">
                     The system was updated. Refresh to load the latest version.
                   </div>
-                  {serverInstanceId ? (
-                    <div className="mt-2 text-[11px] text-gray-400 truncate">Instance: {serverInstanceId}</div>
-                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -967,6 +955,8 @@ export function UserSidebarLayout({
           </motion.div>
         )}
       </AnimatePresence>
+
+
 
       <Sidebar
         collapsible="icon"
@@ -1182,84 +1172,79 @@ export function UserSidebarLayout({
 
                                   setNotifications((prev) => prev.filter((x) => x.id !== n.id))
                                 }}
-                                className={`group relative block w-full overflow-hidden text-left rounded-2xl border bg-white/70 p-3 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-[1px] hover:bg-white hover:shadow-md active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 ${
-                                  n.status === "Cancelled"
-                                    ? "border-red-600/25"
-                                    : n.kind === "event"
-                                      ? "border-emerald-600/20"
-                                      : "border-sky-600/20"
-                                }`}
+                                className={`group relative block w-full overflow-hidden text-left rounded-2xl border bg-white/70 p-3 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-[1px] hover:bg-white hover:shadow-md active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 ${n.status === "Cancelled"
+                                  ? "border-red-600/25"
+                                  : n.kind === "event"
+                                    ? "border-emerald-600/20"
+                                    : "border-sky-600/20"
+                                  }`}
                               >
-                              <div
-                                className={`absolute inset-y-0 left-0 w-1 ${
-                                  n.status === "Cancelled"
+                                <div
+                                  className={`absolute inset-y-0 left-0 w-1 ${n.status === "Cancelled"
                                     ? "bg-red-600"
                                     : n.kind === "event"
                                       ? "bg-emerald-600"
                                       : "bg-sky-600"
-                                }`}
-                              />
+                                    }`}
+                                />
 
-                              <div className="flex items-start justify-between gap-3">
-                                <span
-                                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                                    n.status === "Cancelled"
+                                <div className="flex items-start justify-between gap-3">
+                                  <span
+                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${n.status === "Cancelled"
                                       ? "bg-red-600/10 text-red-700"
                                       : n.kind === "event"
                                         ? "bg-emerald-600/10 text-emerald-700"
                                         : "bg-sky-600/10 text-sky-700"
-                                  }`}
-                                >
-                                  {n.kind === "event" ? "Event" : "Announcement"}
-                                </span>
+                                      }`}
+                                  >
+                                    {n.kind === "event" ? "Event" : "Announcement"}
+                                  </span>
 
-                                <div className="flex items-center gap-2">
-                                  {!n.read ? (
-                                    <span
-                                      className={`mt-0.5 size-2 rounded-full ${
-                                        n.status === "Cancelled"
+                                  <div className="flex items-center gap-2">
+                                    {!n.read ? (
+                                      <span
+                                        className={`mt-0.5 size-2 rounded-full ${n.status === "Cancelled"
                                           ? "bg-red-600"
                                           : n.kind === "event"
                                             ? "bg-emerald-600"
                                             : "bg-sky-600"
-                                      }`}
-                                      aria-label="Unread"
-                                    />
-                                  ) : null}
+                                          }`}
+                                        aria-label="Unread"
+                                      />
+                                    ) : null}
 
-                                  {n.status === "Cancelled" ? (
-                                    <span className="shrink-0 rounded-full bg-red-600/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700">
-                                      Cancelled
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </div>
-
-                              <div className="mt-2 pl-1">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0 text-[13px] sm:text-sm font-semibold leading-snug truncate text-slate-900">
-                                    {n.title}
-                                  </div>
-
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="shrink-0 text-[10px] sm:text-xs text-muted-foreground hover:text-slate-700">
-                                        {formatRelativeNotifiedAt(n.createdAt)}
+                                    {n.status === "Cancelled" ? (
+                                      <span className="shrink-0 rounded-full bg-red-600/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700">
+                                        Cancelled
                                       </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" sideOffset={6}>
-                                      {formatAbsoluteDateTime(n.createdAt)}
-                                    </TooltipContent>
-                                  </Tooltip>
+                                    ) : null}
+                                  </div>
                                 </div>
-                                <div
-                                  className={`mt-1 text-[11px] sm:text-xs leading-snug text-muted-foreground ${
-                                    n.kind === "announcement" ? "line-clamp-2 whitespace-normal break-words" : "truncate"
-                                  }`}
-                                >
-                                  {n.message || (n.kind === "event" ? "(open to view details)" : "")}
+
+                                <div className="mt-2 pl-1">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0 text-[13px] sm:text-sm font-semibold leading-snug truncate text-slate-900">
+                                      {n.title}
+                                    </div>
+
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="shrink-0 text-[10px] sm:text-xs text-muted-foreground hover:text-slate-700">
+                                          {formatRelativeNotifiedAt(n.createdAt)}
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" sideOffset={6}>
+                                        {formatAbsoluteDateTime(n.createdAt)}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
+                                  <div
+                                    className={`mt-1 text-[11px] sm:text-xs leading-snug text-muted-foreground ${n.kind === "announcement" ? "line-clamp-2 whitespace-normal break-words" : "truncate"
+                                      }`}
+                                  >
+                                    {n.message || (n.kind === "event" ? "(open to view details)" : "")}
+                                  </div>
                                 </div>
-                              </div>
                               </motion.button>
                             ))}
                           </AnimatePresence>

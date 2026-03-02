@@ -18,7 +18,7 @@ import {
   ArrowLeft,
   CalendarIcon,
 } from "lucide-react"
-import { toast } from "sonner"
+import { sileo } from "sileo"
 import imageCompression from "browser-image-compression"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -63,6 +63,7 @@ type FolderType =
   | "Water"
   | "LPG"
   | "Rice"
+  | "COA"
   | "Others"
 
 type UploadedFile = {
@@ -90,6 +91,7 @@ const FOLDERS: FolderType[] = [
   "Water",
   "LPG",
   "Rice",
+  "COA",
   "Others",
 ]
 
@@ -103,6 +105,7 @@ const FOLDER_COLORS: Record<FolderType, string> = {
   Water: "bg-cyan-100 text-cyan-600",
   LPG: "bg-gray-100 text-gray-600",
   Rice: "bg-stone-100 text-stone-600",
+  COA: "bg-teal-100 text-teal-700",
   Others: "bg-slate-100 text-slate-600",
 }
 
@@ -189,7 +192,7 @@ export function FileSubmission() {
       )
       setUploadedFiles(data.files || [])
     } catch (err) {
-      toast.error("Failed to fetch files")
+      sileo.error({ title: "Failed to fetch files" })
     } finally {
       setIsLoading(false)
     }
@@ -209,13 +212,13 @@ export function FileSubmission() {
     if (files.length === 0 || !currentFolder) return
 
     if (files.length > MAX_UPLOAD_FILES) {
-      toast.error(`You can only upload up to ${MAX_UPLOAD_FILES} images at a time`)
+      sileo.error({ title: `You can only upload up to ${MAX_UPLOAD_FILES} images at a time` })
       return
     }
 
     const invalidFiles = files.filter((f) => !ALLOWED_IMAGE_TYPES.includes(f.type as any))
     if (invalidFiles.length > 0) {
-      toast.error("Only JPEG/PNG images are allowed")
+      sileo.error({ title: "Only JPEG/PNG images are allowed" })
       return
     }
 
@@ -238,14 +241,14 @@ export function FileSubmission() {
       if (!res.ok) throw new Error(await res.text())
 
       const data = await res.json()
-      toast.success(data.message)
+      sileo.success({ title: data.message || "Files uploaded successfully" })
       setFiles([])
       setDescription("")
       setIsUploadDialogOpen(false)
       fetchFiles()
       fetchFolderCounts()
     } catch (err: any) {
-      toast.error(err?.message || "Failed to upload files")
+      sileo.error({ title: err?.message || "Failed to upload files" })
     } finally {
       setIsUploading(false)
     }
@@ -255,11 +258,11 @@ export function FileSubmission() {
     try {
       await apiFetch(`/api/file-submissions/${fileId}`, { method: "DELETE" })
       setDeleteFileId(null)
-      toast.success("File deleted successfully")
+      sileo.success({ title: "File deleted successfully" })
       fetchFiles()
       fetchFolderCounts()
     } catch {
-      toast.error("Failed to delete file")
+      sileo.error({ title: "Failed to delete file" })
     }
   }
 
@@ -280,7 +283,7 @@ export function FileSubmission() {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
     } catch {
-      toast.error("Failed to download file")
+      sileo.error({ title: "Failed to download file" })
     }
   }
 
@@ -307,7 +310,7 @@ export function FileSubmission() {
 
     const remainingSlots = Math.max(0, MAX_UPLOAD_FILES - files.length)
     if (selectedFiles.length > remainingSlots) {
-      toast.error(`You can only upload up to ${MAX_UPLOAD_FILES} images at a time`)
+      sileo.error({ title: `You can only upload up to ${MAX_UPLOAD_FILES} images at a time` })
     }
 
     const filesToProcess = selectedFiles.slice(0, remainingSlots)
@@ -325,11 +328,11 @@ export function FileSubmission() {
 
     const validFiles = filesToProcess.filter((file) => {
       if (!ALLOWED_IMAGE_TYPES.includes(file.type as any)) {
-        toast.error(`${file.name} is not a JPEG/PNG image`)
+        sileo.error({ title: `${file.name} is not a JPEG/PNG image` })
         return false
       }
       if (file.size > MAX_FILE_BYTES) {
-        toast.error(`${file.name} is too large (max 10MB)`)
+        sileo.error({ title: `${file.name} is too large (max 10MB)` })
         return false
       }
       return true
@@ -372,7 +375,7 @@ export function FileSubmission() {
 
       setFiles((prev) => [...prev, ...processedImages])
     } catch (err: any) {
-      toast.error(err?.message || "Failed to process image")
+      sileo.error({ title: err?.message || "Failed to process image" })
     } finally {
       setIsCompressing(false)
       setCompressText("")
@@ -506,7 +509,7 @@ export function FileSubmission() {
           <ArrowLeft className="mr-1 size-4" />
           Back to Folders
         </Button>
-        
+
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2 sm:gap-3">
             <div
@@ -524,7 +527,7 @@ export function FileSubmission() {
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Popover>
               <PopoverTrigger asChild>
@@ -767,7 +770,7 @@ export function FileSubmission() {
 
                 const remainingSlots = Math.max(0, MAX_UPLOAD_FILES - files.length)
                 if (droppedFiles.length > remainingSlots) {
-                  toast.error(`You can only upload up to ${MAX_UPLOAD_FILES} images at a time`)
+                  sileo.error({ title: `You can only upload up to ${MAX_UPLOAD_FILES} images at a time` })
                 }
 
                 const filesToProcess = droppedFiles.slice(0, remainingSlots)
@@ -775,11 +778,11 @@ export function FileSubmission() {
 
                 const validFiles = filesToProcess.filter((file) => {
                   if (!ALLOWED_IMAGE_TYPES.includes(file.type as any)) {
-                    toast.error(`${file.name} is not a JPEG/PNG image`)
+                    sileo.error({ title: `${file.name} is not a JPEG/PNG image` })
                     return false
                   }
                   if (file.size > 10 * 1024 * 1024) {
-                    toast.error(`${file.name} is too large (max 10MB)`)
+                    sileo.error({ title: `${file.name} is too large (max 10MB)` })
                     return false
                   }
                   return true
@@ -1000,7 +1003,7 @@ export function FileSubmission() {
             >
               Close
             </Button>
-            <Button 
+            <Button
               className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
               onClick={() => viewFile && handleDownload(viewFile)}
             >
@@ -1039,7 +1042,7 @@ export function FileSubmission() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isCompressing} onOpenChange={() => {}}>
+      <Dialog open={isCompressing} onOpenChange={() => { }}>
         <DialogContent className="w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl">
           <div className="flex flex-col items-center text-center">
             <div className="flex size-12 items-center justify-center rounded-2xl bg-black text-white">

@@ -545,29 +545,29 @@ export function UserAttendance() {
       transition={{ duration: 0.2 }}
       className="space-y-4"
     >
-      <div className="rounded-2xl border bg-gradient-to-br from-slate-50 to-white p-6">
+      <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-white p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <div className="flex size-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
                 <ClipboardList className="size-5" />
               </div>
               <div>
-                <div className="text-2xl font-semibold leading-tight">Attendance</div>
+                <div className="text-2xl font-semibold leading-tight text-emerald-800">Attendance</div>
                 <div className="mt-0.5 text-sm text-muted-foreground">{headerSubtitle}</div>
               </div>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary" className="rounded-xl px-3 py-1">
+            <Badge className="rounded-xl px-3 py-1 bg-emerald-100 text-emerald-700 border border-emerald-200">
               <Users className="mr-2 size-4" />
               {totals.count7} records (7d)
             </Badge>
-            <Badge variant="outline" className="rounded-xl px-3 py-1">
+            <Badge variant="outline" className="rounded-xl px-3 py-1 border-emerald-200 text-emerald-700">
               Present: {totals.present7}
             </Badge>
-            <Badge variant="outline" className="rounded-xl px-3 py-1">
+            <Badge variant="outline" className="rounded-xl px-3 py-1 border-emerald-200 text-emerald-700">
               Absent: {totals.absent7}
             </Badge>
           </div>
@@ -575,12 +575,12 @@ export function UserAttendance() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-3">
-        <TabsList className="rounded-xl">
-          <TabsTrigger value="record">
+        <TabsList className="rounded-xl bg-emerald-50 border border-emerald-200">
+          <TabsTrigger value="record" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm">
             <CheckCircle2 className="size-4" />
             Record
           </TabsTrigger>
-          <TabsTrigger value="history">
+          <TabsTrigger value="history" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm">
             <History className="size-4" />
             History
           </TabsTrigger>
@@ -589,8 +589,8 @@ export function UserAttendance() {
         <TabsContent value="record">
           <Card className="rounded-2xl">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle2 className="size-5" />
+              <CardTitle className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle2 className="size-5 text-emerald-600" />
                 Record Attendance
               </CardTitle>
             </CardHeader>
@@ -602,7 +602,7 @@ export function UserAttendance() {
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="h-10 w-full justify-start rounded-xl"
+                        className="h-10 w-full justify-start rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300"
                         disabled={isDateLoading}
                       >
                         <CalendarIcon className="mr-2 size-4" />
@@ -681,7 +681,7 @@ export function UserAttendance() {
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <Button
                   type="button"
-                  className="w-full rounded-xl sm:w-auto"
+                  className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white"
                   onClick={addPendingEntry}
                   disabled={isSaving || isDateLoading}
                 >
@@ -723,7 +723,7 @@ export function UserAttendance() {
                       pendingEntries.map((e) => (
                         <div
                           key={`pending-${e.grade}`}
-                          className="flex items-start justify-between gap-3 rounded-xl border bg-slate-50 p-3"
+                          className="flex items-start justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3"
                         >
                           <div className="min-w-0">
                             <div className="font-medium">{e.grade}</div>
@@ -758,7 +758,7 @@ export function UserAttendance() {
                       </Button>
                       <Button
                         type="button"
-                        className="w-full flex-1 rounded-xl"
+                        className="w-full flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white"
                         onClick={savePendingAll}
                         disabled={isSaving || isDateLoading || pendingEntries.length === 0}
                       >
@@ -787,8 +787,8 @@ export function UserAttendance() {
         <TabsContent value="history">
           <Card className="rounded-2xl">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="size-5" />
+              <CardTitle className="flex items-center gap-2 text-emerald-700">
+                <History className="size-5 text-emerald-600" />
                 Attendance History
               </CardTitle>
             </CardHeader>

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 import { io, type Socket } from "socket.io-client"
-import { notify } from "@/components/ui/in-app-notifications"
+import { sileo } from "sileo"
 
 function getApiBaseUrl() {
   const envAny = (import.meta as any)?.env as any
@@ -71,7 +71,7 @@ export function AdminGlobalNotifications() {
       audioRef.current.currentTime = 0
       const p = audioRef.current.play()
       if (p && typeof (p as any).catch === "function") {
-        ;(p as any).catch(() => {})
+        ; (p as any).catch(() => { })
       }
     } catch {
       // ignore
@@ -80,7 +80,7 @@ export function AdminGlobalNotifications() {
 
   useEffect(() => {
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {})
+      Notification.requestPermission().catch(() => { })
     }
 
     const socket: Socket = io(getApiBaseUrl(), { transports: ["websocket"] })
@@ -101,11 +101,9 @@ export function AdminGlobalNotifications() {
       const timeText = formatClockTimeNow()
       const bodyWithTime = timeText ? `${body} • ${timeText}` : body
 
-      notify({
-        variant: "success",
+      sileo.success({
         title,
-        message: body,
-        id: notificationId,
+        description: body,
       })
 
       playSound()
@@ -143,11 +141,9 @@ export function AdminGlobalNotifications() {
       const timeText = formatClockTimeNow()
       const bodyWithTime = timeText ? `${body} • ${timeText}` : body
 
-      notify({
-        variant: "success",
+      sileo.success({
         title,
-        message: body,
-        id: notificationId,
+        description: body,
       })
 
       playSound()
@@ -184,11 +180,9 @@ export function AdminGlobalNotifications() {
       const timeText = formatClockTimeNow()
       const bodyWithTime = timeText ? `${body} • ${timeText}` : body
 
-      notify({
-        variant: "success",
+      sileo.success({
         title,
-        message: body,
-        id: notificationId,
+        description: body,
       })
 
       playSound()

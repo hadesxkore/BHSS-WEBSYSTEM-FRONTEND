@@ -200,9 +200,8 @@ const OptimizedImage = ({
           alt={alt}
           loading="lazy"
           decoding="async"
-          className={`transition-opacity duration-300 ${isLoaded ? "opacity-100" : "opacity-0"} ${
-            className || ""
-          }`}
+          className={`transition-opacity duration-300 ${isLoaded ? "opacity-100" : "opacity-0"} ${className || ""
+            }`}
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
         />
@@ -446,31 +445,31 @@ const STATUS_OPTIONS: Array<{
   icon: ComponentType<{ className?: string }>
   badgeClass: string
 }> = [
-  {
-    value: "Pending",
-    label: "Pending",
-    icon: Clock,
-    badgeClass: "bg-muted text-foreground border",
-  },
-  {
-    value: "Delivered",
-    label: "Delivered",
-    icon: CheckCircle2,
-    badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-  },
-  {
-    value: "Delayed",
-    label: "Delayed",
-    icon: TriangleAlert,
-    badgeClass: "bg-amber-50 text-amber-800 border border-amber-200",
-  },
-  {
-    value: "Cancelled",
-    label: "Cancelled",
-    icon: XCircle,
-    badgeClass: "bg-rose-50 text-rose-700 border border-rose-200",
-  },
-]
+    {
+      value: "Pending",
+      label: "Pending",
+      icon: Clock,
+      badgeClass: "bg-muted text-foreground border",
+    },
+    {
+      value: "Delivered",
+      label: "Delivered",
+      icon: CheckCircle2,
+      badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    },
+    {
+      value: "Delayed",
+      label: "Delayed",
+      icon: TriangleAlert,
+      badgeClass: "bg-amber-50 text-amber-800 border border-amber-200",
+    },
+    {
+      value: "Cancelled",
+      label: "Cancelled",
+      icon: XCircle,
+      badgeClass: "bg-rose-50 text-rose-700 border border-rose-200",
+    },
+  ]
 
 const STATUS_OPTIONS_FOR_SELECTION = STATUS_OPTIONS.filter((s) => s.value !== "Pending")
 
@@ -1045,11 +1044,11 @@ export function UserDelivery() {
       if (!it) return false
       return Boolean(
         it.statusTouched ||
-          it.uploadedAt ||
-          it.statusUpdatedAt ||
-          it.remarks.trim() ||
-          it.concerns.length ||
-          it.images.length
+        it.uploadedAt ||
+        it.statusUpdatedAt ||
+        it.remarks.trim() ||
+        it.concerns.length ||
+        it.images.length
       )
     })
   }, [dayItems])
@@ -1064,12 +1063,12 @@ export function UserDelivery() {
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       className="space-y-4"
     >
-      <Card className="overflow-hidden">
-        <CardHeader className="border-b">
+      <Card className="overflow-hidden shadow-sm">
+        <CardHeader className="border-b border-gray-100">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Truck className="size-5" />
+              <CardTitle className="flex items-center gap-2 text-emerald-700">
+                <Truck className="size-5 text-emerald-600" />
                 Delivery
               </CardTitle>
               <CardDescription>
@@ -1080,9 +1079,9 @@ export function UserDelivery() {
         </CardHeader>
         <CardContent className="pt-6">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "upload" | "history")}>
-            <TabsList className="grid w-full max-w-md grid-cols-2">
-              <TabsTrigger value="upload">Upload</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
+            <TabsList className="grid w-full max-w-md grid-cols-2 bg-emerald-50 border border-emerald-200">
+              <TabsTrigger value="upload" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm">Upload</TabsTrigger>
+              <TabsTrigger value="history" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm">History</TabsTrigger>
             </TabsList>
 
             <TabsContent value="upload" className="mt-6">
@@ -1093,7 +1092,7 @@ export function UserDelivery() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                         <PopoverTrigger asChild>
-                          <Button type="button" variant="outline" className="rounded-xl">
+                          <Button type="button" variant="outline" className="rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300">
                             <CalendarDays className="size-4" />
                             {format(selectedDate, "MMM dd, yyyy")}
                           </Button>
@@ -1145,14 +1144,14 @@ export function UserDelivery() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 rounded-2xl border bg-muted/20 px-4 py-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-2 gap-2 rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 sm:grid-cols-2">
                     <div>
-                      <div className="text-xs text-muted-foreground">Submitted</div>
-                      <div className="text-sm font-semibold">{submittedCount}</div>
+                      <div className="text-xs font-medium text-emerald-600">Submitted</div>
+                      <div className="text-sm font-bold text-emerald-800">{submittedCount}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground">Pending</div>
-                      <div className="text-sm font-semibold">{pendingCount}</div>
+                      <div className="text-xs font-medium text-gray-500">Pending</div>
+                      <div className="text-sm font-bold text-gray-700">{pendingCount}</div>
                     </div>
                   </div>
                 </div>
@@ -1161,12 +1160,12 @@ export function UserDelivery() {
                   <div className="rounded-2xl border bg-white p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-sm font-semibold">Submitted items</div>
+                        <div className="text-sm font-semibold text-gray-800">Submitted items</div>
                         <div className="text-xs text-muted-foreground">
                           Tap an item to view or edit details.
                         </div>
                       </div>
-                      <Badge className="rounded-xl bg-muted text-foreground border">
+                      <Badge className="rounded-xl bg-emerald-100 text-emerald-700 border border-emerald-200">
                         {submittedCount} total
                       </Badge>
                     </div>
@@ -1181,9 +1180,10 @@ export function UserDelivery() {
                             key={k}
                             type="button"
                             onClick={() => openWizard(k)}
-                            className={`rounded-xl border px-3 py-2 text-left transition-colors hover:bg-muted/30 ${
-                              activeCategory === k ? "border-black/15 bg-muted/20" : "border-black/5 bg-white"
-                            }`}
+                            className={`rounded-xl border px-3 py-2 text-left transition-colors ${activeCategory === k
+                              ? "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-300"
+                              : "border-gray-100 bg-white hover:bg-emerald-50/50 hover:border-emerald-200"
+                              }`}
                           >
                             <div className="text-sm font-semibold leading-tight">{c?.label || k}</div>
                             <div className="mt-0.5 text-xs text-muted-foreground">
@@ -1205,7 +1205,7 @@ export function UserDelivery() {
                 )}
 
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <Button type="button" className="rounded-xl" onClick={() => openWizard(activeCategory)}>
+                  <Button type="button" className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm" onClick={() => openWizard(activeCategory)}>
                     <Plus className="size-4" />
                     Add / Edit item delivery
                   </Button>
@@ -1313,11 +1313,10 @@ export function UserDelivery() {
                                         <button
                                           key={opt.value}
                                           type="button"
-                                          className={`group rounded-2xl border p-3 text-left transition-all duration-200 hover:bg-muted/20 ${
-                                            isActive
-                                              ? "border-black bg-black text-white shadow-sm"
-                                              : "border-black/5 bg-white"
-                                          }`}
+                                          className={`group rounded-2xl border p-3 text-left transition-all duration-200 ${isActive
+                                            ? "border-emerald-500 bg-emerald-600 text-white shadow-sm"
+                                            : "border-gray-100 bg-white hover:bg-emerald-50/50 hover:border-emerald-200"
+                                            }`}
                                           onClick={() =>
                                             updateDeliveryItem(selectedDateKey, wizardCategory, {
                                               status: opt.value,
@@ -1328,9 +1327,8 @@ export function UserDelivery() {
                                         >
                                           <div className="flex items-center gap-2">
                                             <div
-                                              className={`grid size-9 place-items-center rounded-xl transition-colors ${
-                                                isActive ? "bg-white/10 text-white" : opt.badgeClass
-                                              }`}
+                                              className={`grid size-9 place-items-center rounded-xl transition-colors ${isActive ? "bg-white/10 text-white" : opt.badgeClass
+                                                }`}
                                             >
                                               <Icon className="size-4" />
                                             </div>
@@ -1339,9 +1337,8 @@ export function UserDelivery() {
                                                 {opt.label}
                                               </div>
                                               <div
-                                                className={`text-xs ${
-                                                  isActive ? "text-white/80" : "text-muted-foreground"
-                                                }`}
+                                                className={`text-xs ${isActive ? "text-white/80" : "text-muted-foreground"
+                                                  }`}
                                               >
                                                 Tap to select
                                               </div>
@@ -1426,11 +1423,10 @@ export function UserDelivery() {
                                     <div className="flex flex-wrap gap-2">
                                       <button
                                         type="button"
-                                        className={`rounded-xl border px-3 py-1 text-xs transition-colors ${
-                                          item.concerns.length === 0
-                                            ? "bg-primary text-primary-foreground border-primary"
-                                            : "bg-background hover:bg-muted"
-                                        }`}
+                                        className={`rounded-xl border px-3 py-1 text-xs transition-colors ${item.concerns.length === 0
+                                          ? "bg-primary text-primary-foreground border-primary"
+                                          : "bg-background hover:bg-muted"
+                                          }`}
                                         onClick={() =>
                                           updateDeliveryItem(selectedDateKey, wizardCategory, {
                                             concerns: [],
@@ -1448,11 +1444,10 @@ export function UserDelivery() {
                                           <button
                                             key={c}
                                             type="button"
-                                            className={`rounded-xl border px-3 py-1 text-xs transition-colors ${
-                                              active
-                                                ? "bg-primary text-primary-foreground border-primary"
-                                                : "bg-background hover:bg-muted"
-                                            }`}
+                                            className={`rounded-xl border px-3 py-1 text-xs transition-colors ${active
+                                              ? "bg-primary text-primary-foreground border-primary"
+                                              : "bg-background hover:bg-muted"
+                                              }`}
                                             onClick={() =>
                                               updateDeliveryItem(selectedDateKey, wizardCategory, {
                                                 concerns: toggleItem(item.concerns, c),
@@ -1684,7 +1679,7 @@ export function UserDelivery() {
                               <Button
                                 type="button"
                                 variant="outline"
-                                className="rounded-xl"
+                                className="rounded-xl border-gray-200 text-gray-600 hover:bg-gray-50"
                                 onClick={goBack}
                                 disabled={wizardStep === 1 || wizardIsSaving}
                               >
@@ -1694,7 +1689,7 @@ export function UserDelivery() {
                               {wizardStep < 4 ? (
                                 <Button
                                   type="button"
-                                  className="rounded-xl"
+                                  className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white"
                                   onClick={goNext}
                                   disabled={wizardIsSaving || !canContinueFromStatus}
                                 >
@@ -1704,7 +1699,7 @@ export function UserDelivery() {
                               ) : (
                                 <Button
                                   type="button"
-                                  className="rounded-xl"
+                                  className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white"
                                   onClick={submitWizard}
                                   disabled={wizardIsSaving}
                                 >
@@ -1732,7 +1727,7 @@ export function UserDelivery() {
                         onOpenChange={setIsHistoryDatePickerOpen}
                       >
                         <PopoverTrigger asChild>
-                          <Button type="button" variant="outline" className="rounded-xl">
+                          <Button type="button" variant="outline" className="rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300">
                             <CalendarDays className="size-4" />
                             {historyDate ? format(historyDate, "MMM dd, yyyy") : "All dates"}
                           </Button>
@@ -1852,7 +1847,7 @@ export function UserDelivery() {
                                     variant="outline"
                                     className="rounded-xl px-2"
                                     onClick={() =>
-                                      (setDetailsTab("details"),
+                                    (setDetailsTab("details"),
                                       setViewDetailsTarget({
                                         dateKey: r.dateKey,
                                         categoryKey: r.categoryKey,
@@ -1990,7 +1985,7 @@ export function UserDelivery() {
                               variant="outline"
                               className="rounded-xl"
                               onClick={() =>
-                                (setDetailsTab("details"),
+                              (setDetailsTab("details"),
                                 setViewDetailsTarget({
                                   dateKey: r.dateKey,
                                   categoryKey: r.categoryKey,
@@ -2302,8 +2297,8 @@ export function UserDelivery() {
                         [key]: createEmptyItem(
                           key,
                           current?.label ||
-                            CATEGORY_OPTIONS.find((c) => c.key === key)?.label ||
-                            ""
+                          CATEGORY_OPTIONS.find((c) => c.key === key)?.label ||
+                          ""
                         ),
                       },
                     }
@@ -2368,24 +2363,24 @@ export function UserDelivery() {
 
               {(pendingStatusChange.to === "Cancelled" ||
                 pendingStatusChange.to === "Delayed") && (
-                <div className="grid gap-2">
-                  <Label className="text-sm">
-                    {pendingStatusChange.to === "Cancelled"
-                      ? "Reason of cancellation (required)"
-                      : "Reason of delay (optional)"}
-                  </Label>
-                  <Textarea
-                    value={statusReasonDraft}
-                    onChange={(e) => setStatusReasonDraft(e.target.value)}
-                    placeholder={
-                      pendingStatusChange.to === "Cancelled"
-                        ? "Type the reason of cancellation"
-                        : "Add a short note (optional)"
-                    }
-                    className="min-h-[90px] rounded-xl"
-                  />
-                </div>
-              )}
+                  <div className="grid gap-2">
+                    <Label className="text-sm">
+                      {pendingStatusChange.to === "Cancelled"
+                        ? "Reason of cancellation (required)"
+                        : "Reason of delay (optional)"}
+                    </Label>
+                    <Textarea
+                      value={statusReasonDraft}
+                      onChange={(e) => setStatusReasonDraft(e.target.value)}
+                      placeholder={
+                        pendingStatusChange.to === "Cancelled"
+                          ? "Type the reason of cancellation"
+                          : "Add a short note (optional)"
+                      }
+                      className="min-h-[90px] rounded-xl"
+                    />
+                  </div>
+                )}
             </div>
           )}
 
@@ -2549,9 +2544,9 @@ export function UserDelivery() {
                         setImagePreview((prev) =>
                           prev
                             ? {
-                                ...prev,
-                                index: Math.min(item.images.length - 1, prev.index + 1),
-                              }
+                              ...prev,
+                              index: Math.min(item.images.length - 1, prev.index + 1),
+                            }
                             : prev
                         )
                       }
@@ -2615,7 +2610,7 @@ export function UserDelivery() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isCompressing} onOpenChange={() => {}}>
+      <Dialog open={isCompressing} onOpenChange={() => { }}>
         <DialogContent className="w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl">
           <div className="flex flex-col items-center text-center">
             <div className="flex size-12 items-center justify-center rounded-2xl bg-black text-white">
