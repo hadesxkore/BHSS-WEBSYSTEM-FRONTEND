@@ -9,6 +9,8 @@ import {
   Image,
   FileSpreadsheet,
   FileCode,
+  FileText,
+  FileArchive,
   CheckCircle2,
   Loader2,
   Trash2,
@@ -133,12 +135,32 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
 }
 
-function getFileIcon(type: string) {
-  if (type.startsWith("image/")) return Image
-  if (type.includes("spreadsheet") || type.includes("excel")) return FileSpreadsheet
-  if (type.includes("pdf")) return FileIcon
-  if (type.includes("code") || type.includes("json")) return FileCode
-  return FileIcon
+function getFileDisplayInfo(type: string, name: string) {
+  const t = type.toLowerCase()
+  const n = name.toLowerCase()
+
+  if (t.startsWith("image/") || n.endsWith(".jpg") || n.endsWith(".png") || n.endsWith(".jpeg") || n.endsWith(".gif")) {
+    return { Icon: Image, color: "text-emerald-600", bg: "bg-emerald-50" }
+  }
+  if (t.includes("pdf") || n.endsWith(".pdf")) {
+    return { Icon: FileText, color: "text-red-500", bg: "bg-red-50" }
+  }
+  if (t.includes("spreadsheet") || t.includes("excel") || t.includes("csv") || n.endsWith(".xls") || n.endsWith(".xlsx") || n.endsWith(".csv")) {
+    return { Icon: FileSpreadsheet, color: "text-green-600", bg: "bg-green-50" }
+  }
+  if (t.includes("word") || t.includes("document") || n.endsWith(".doc") || n.endsWith(".docx")) {
+    return { Icon: FileText, color: "text-blue-600", bg: "bg-blue-50" }
+  }
+  if (t.includes("presentation") || t.includes("powerpoint") || n.endsWith(".ppt") || n.endsWith(".pptx")) {
+    return { Icon: FileIcon, color: "text-orange-500", bg: "bg-orange-50" }
+  }
+  if (t.includes("code") || t.includes("json") || n.endsWith(".json") || n.endsWith(".js") || n.endsWith(".ts") || n.endsWith(".html") || n.endsWith(".css")) {
+    return { Icon: FileCode, color: "text-slate-600", bg: "bg-slate-100" }
+  }
+  if (t.includes("zip") || t.includes("archive") || t.includes("rar") || t.includes("tar") || n.endsWith(".zip") || n.endsWith(".rar") || n.endsWith(".7z")) {
+    return { Icon: FileArchive, color: "text-yellow-600", bg: "bg-yellow-50" }
+  }
+  return { Icon: FileIcon, color: "text-slate-600", bg: "bg-slate-100" }
 }
 
 export function FileSubmission() {
@@ -645,7 +667,7 @@ export function FileSubmission() {
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
           {filteredFiles.map((file) => {
-            const Icon = getFileIcon(file.type)
+            const { Icon, color, bg } = getFileDisplayInfo(file.type, file.name)
             const isImage = file.type.startsWith("image/")
             return (
               <div
@@ -668,8 +690,8 @@ export function FileSubmission() {
                       </div>
                     )
                   ) : (
-                    <div className="rounded-lg sm:rounded-xl bg-emerald-50 p-2 sm:p-4">
-                      <Icon className="size-6 sm:size-10 text-emerald-600" />
+                    <div className={cn("rounded-lg sm:rounded-xl p-2 sm:p-4", bg)}>
+                      <Icon className={cn("size-6 sm:size-10", color)} />
                     </div>
                   )}
                   <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -706,15 +728,15 @@ export function FileSubmission() {
           <CardContent className="p-0">
             <div className="divide-y">
               {filteredFiles.map((file) => {
-                const Icon = getFileIcon(file.type)
+                const { Icon, color, bg } = getFileDisplayInfo(file.type, file.name)
                 return (
                   <div
                     key={file.id}
                     className="flex items-center gap-4 p-4 hover:bg-slate-50 cursor-pointer group"
                     onClick={() => setViewFile(file)}
                   >
-                    <div className="rounded-xl bg-emerald-50 p-3">
-                      <Icon className="size-6 text-emerald-600" />
+                    <div className={cn("rounded-xl p-3", bg)}>
+                      <Icon className={cn("size-6", color)} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{file.name}</p>
@@ -832,14 +854,14 @@ export function FileSubmission() {
                 </div>
                 <div className="max-h-48 space-y-2 overflow-y-auto rounded-xl border p-3">
                   {files.map((file, index) => {
-                    const Icon = getFileIcon(file.type)
+                    const { Icon, color, bg } = getFileDisplayInfo(file.type, file.name)
                     return (
                       <div
                         key={index}
                         className="flex items-center gap-3 rounded-lg bg-slate-50 p-3"
                       >
-                        <div className="rounded-lg bg-white p-2 shadow-sm">
-                          <Icon className="size-4 text-slate-600" />
+                        <div className={cn("rounded-lg p-2 shadow-sm", bg)}>
+                          <Icon className={cn("size-4", color)} />
                         </div>
                         <div className="flex-1 min-w-0 w-0">
                           <p className="block w-full text-sm font-medium truncate">
