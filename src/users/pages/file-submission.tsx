@@ -216,19 +216,22 @@ export function FileSubmission() {
       return
     }
 
-    const invalidFiles = files.filter((f) => !ALLOWED_IMAGE_TYPES.includes(f.type as any))
-    if (invalidFiles.length > 0) {
-      sileo.error({ title: "Only JPEG/PNG images are allowed" })
-      return
+    if (currentFolder !== "COA") {
+      const invalidFiles = files.filter((f) => !ALLOWED_IMAGE_TYPES.includes(f.type as any))
+      if (invalidFiles.length > 0) {
+        sileo.error({ title: "Only JPEG/PNG images are allowed" })
+        return
+      }
     }
 
     setIsUploading(true)
     try {
       const formData = new FormData()
-      files.forEach((file) => formData.append("files", file))
+      // Fields must be appended BEFORE files so multer's fileFilter can read them
       formData.append("folder", currentFolder)
       formData.append("description", description)
       formData.append("uploadDate", format(selectedDate, "yyyy-MM-dd"))
+      files.forEach((file) => formData.append("files", file))
 
       const res = await fetch(`${getApiBaseUrl()}/api/file-submissions/upload`, {
         method: "POST",
@@ -327,7 +330,7 @@ export function FileSubmission() {
     const MAX_IMAGE_BYTES = 1.5 * 1024 * 1024
 
     const validFiles = filesToProcess.filter((file) => {
-      if (!ALLOWED_IMAGE_TYPES.includes(file.type as any)) {
+      if (currentFolder !== "COA" && !ALLOWED_IMAGE_TYPES.includes(file.type as any)) {
         sileo.error({ title: `${file.name} is not a JPEG/PNG image` })
         return false
       }
@@ -367,13 +370,14 @@ export function FileSubmission() {
     }
 
     try {
+      const nonImageFiles = validFiles.filter((f) => !f.type.startsWith("image/"))
       const processedImages: File[] = []
       for (let i = 0; i < imageFiles.length; i += 1) {
         const f = imageFiles[i]
         processedImages.push(await compressOne(f, i, imageFiles.length))
       }
 
-      setFiles((prev) => [...prev, ...processedImages])
+      setFiles((prev) => [...prev, ...nonImageFiles, ...processedImages])
     } catch (err: any) {
       sileo.error({ title: err?.message || "Failed to process image" })
     } finally {
@@ -754,7 +758,9 @@ export function FileSubmission() {
               Upload to {currentFolder}
             </DialogTitle>
             <DialogDescription className="text-xs sm:text-sm">
-              Select multiple images (JPEG/PNG) to upload
+              {currentFolder === "COA"
+                ? "Select files to upload (PDF, Docs, Images, etc.)"
+                : "Select multiple images (JPEG/PNG) to upload"}
             </DialogDescription>
           </DialogHeader>
 
@@ -777,7 +783,7 @@ export function FileSubmission() {
                 if (filesToProcess.length === 0) return
 
                 const validFiles = filesToProcess.filter((file) => {
-                  if (!ALLOWED_IMAGE_TYPES.includes(file.type as any)) {
+                  if (currentFolder !== "COA" && !ALLOWED_IMAGE_TYPES.includes(file.type as any)) {
                     sileo.error({ title: `${file.name} is not a JPEG/PNG image` })
                     return false
                   }
@@ -793,7 +799,9 @@ export function FileSubmission() {
               <div className="rounded-full bg-emerald-100 p-3 sm:p-4">
                 <Upload className="size-6 sm:size-8 text-emerald-600" />
               </div>
-              <p className="mt-3 sm:mt-4 text-sm font-medium">Drag & drop images here</p>
+              <p className="mt-3 sm:mt-4 text-sm font-medium">
+                {currentFolder === "COA" ? "Drag & drop files here" : "Drag & drop images here"}
+              </p>
               <p className="text-xs text-muted-foreground">or click to browse</p>
               <input
                 ref={fileInputRef}
@@ -801,7 +809,7 @@ export function FileSubmission() {
                 multiple
                 className="hidden"
                 onChange={handleFileSelect}
-                accept="image/jpeg,image/png"
+                accept={currentFolder === "COA" ? undefined : "image/jpeg,image/png"}
               />
             </div>
 
