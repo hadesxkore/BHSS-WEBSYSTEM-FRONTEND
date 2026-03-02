@@ -12,6 +12,7 @@ import {
   LogOut,
   Users,
   FileText,
+  TriangleAlert,
 } from "lucide-react"
 import {
   Sidebar,
@@ -53,6 +54,7 @@ import { Attendance } from "./pages/attendance"
 import { AdminUsers } from "./pages/users"
 import { AdminDelivery } from "./pages/delivery"
 import { AdminDeliverySummary } from "./pages/delivery-summary"
+import { AdminDeliveryConcernSummary } from "./pages/delivery-concern-summary"
 import { AdminEventCalendar } from "./pages/event-calendar"
 import { AdminEventAnnouncements } from "./pages/event-announcements"
 import { AdminFileSubmissions } from "./pages/file-submissions"
@@ -118,6 +120,11 @@ const menuItems: MenuItem[] = [
         title: "Summary",
         icon: FileText,
         component: AdminDeliverySummary,
+      },
+      {
+        title: "Concern Summary",
+        icon: TriangleAlert,
+        component: AdminDeliveryConcernSummary,
       },
     ],
   },
