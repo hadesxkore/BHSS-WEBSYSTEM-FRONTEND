@@ -975,10 +975,10 @@ export function FileSubmission() {
                 </div>
               ) : (
                 viewFile && (() => {
-                  const Icon = getFileIcon(viewFile.type)
+                  const { Icon, color, bg } = getFileDisplayInfo(viewFile.type, viewFile.name)
                   return (
-                    <div className="rounded-lg bg-white p-3 shadow-sm">
-                      <Icon className="size-6 text-slate-600" />
+                    <div className={cn("rounded-lg p-3 shadow-sm", bg)}>
+                      <Icon className={cn("size-6", color)} />
                     </div>
                   )
                 })()
