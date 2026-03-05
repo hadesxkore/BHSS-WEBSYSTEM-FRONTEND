@@ -210,20 +210,6 @@ function formatDateTime(value: string) {
   })
 }
 
-const BATAAN_MUNICIPALITIES = [
-  "Abucay",
-  "Bagac",
-  "Balanga City",
-  "Dinalupihan",
-  "Hermosa",
-  "Limay",
-  "Mariveles",
-  "Morong",
-  "Orani",
-  "Orion",
-  "Pilar",
-  "Samal",
-] as const
 
 function fileTypeLabel(mime: string, name: string) {
   const m = String(mime || "").toLowerCase()
