@@ -421,6 +421,7 @@ export function AdminFileSubmissions() {
     }
   }, [rows])
 
+  // Build municipality cards from unique municipalities that actually exist in the data
   const municipalityCards = useMemo(() => {
     const schoolSetByMunicipality = new Map<string, Set<string>>()
     const fileCountByMunicipality = new Map<string, number>()
@@ -435,11 +436,15 @@ export function AdminFileSubmissions() {
       fileCountByMunicipality.set(m, (fileCountByMunicipality.get(m) || 0) + 1)
     }
 
-    return BATAAN_MUNICIPALITIES.map((m) => {
-      const schoolsCount = schoolSetByMunicipality.get(m)?.size || 0
-      const filesCount = fileCountByMunicipality.get(m) || 0
-      return { name: m, schoolsCount, filesCount }
-    }).filter((m) => m.filesCount > 0)
+    // Show every distinct municipality that has at least one file, sorted alphabetically
+    return Array.from(fileCountByMunicipality.entries())
+      .filter(([, count]) => count > 0)
+      .map(([m]) => ({
+        name: m,
+        schoolsCount: schoolSetByMunicipality.get(m)?.size || 0,
+        filesCount: fileCountByMunicipality.get(m) || 0,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
   }, [rows])
 
   const schoolCards = useMemo(() => {
@@ -714,331 +719,331 @@ export function AdminFileSubmissions() {
             transition={{ duration: 0.18, ease: "easeOut" }}
           >
             <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
-          <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-50 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    className="rounded-xl h-8 px-3 text-xs border-gray-200 text-gray-500 hover:border-gray-300 gap-1.5"
-                    onClick={() => {
-                      setSelectedSchool(null)
-                      setSelectedFolder("all")
-                      setSearch("")
-                    }}
-                  >
-                    <ArrowLeft className="size-3.5" />
-                    Back
-                  </Button>
-                  <div>
-                    <div className="font-semibold text-gray-900 text-sm">{selectedSchool}</div>
-                    <div className="text-xs text-gray-400">{selectedMunicipality}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    variant={viewMode === "grid" ? "default" : "outline"}
-                    className={`h-8 w-8 rounded-xl p-0 ${viewMode === "grid" ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-600" : "border-gray-200"}`}
-                    onClick={() => setViewMode("grid")}
-                    aria-label="Grid view"
-                  >
-                    <LayoutGrid className="size-3.5" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "list" ? "default" : "outline"}
-                    className={`h-8 w-8 rounded-xl p-0 ${viewMode === "list" ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-600" : "border-gray-200"}`}
-                    onClick={() => setViewMode("list")}
-                    aria-label="List view"
-                  >
-                    <List className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-                  <Button
-                    variant={selectedFolder === "all" ? "default" : "outline"}
-                    className={`rounded-xl h-7 px-3 text-xs whitespace-nowrap ${selectedFolder === "all" ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-600" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
-                    onClick={() => startFiltering(() => setSelectedFolder("all"))}
-                    disabled={isFiltering}
-                  >
-                    All Files
-                  </Button>
-                  {folderPills.map((f) => (
-                    <Button
-                      key={f}
-                      variant={selectedFolder === f ? "default" : "outline"}
-                      className={`rounded-xl h-7 px-3 text-xs whitespace-nowrap ${selectedFolder === f ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-600" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
-                      onClick={() => startFiltering(() => setSelectedFolder(f))}
-                      disabled={isFiltering}
-                    >
-                      {f}
-                    </Button>
-                  ))}
-                </div>
-
-                <div className="min-w-[220px]">
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-gray-300" />
-                    <Input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search files…"
-                      className="h-8 rounded-xl pl-8 text-sm border-gray-200 focus-visible:ring-emerald-300 bg-gray-50 placeholder:text-gray-300"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <div className="text-xs text-gray-400">
-                  Showing {pagedFiles.length} of {filteredFiles.length} file{filteredFiles.length !== 1 ? "s" : ""}
-                </div>
-              </div>
-            </div>
-            <div className="p-4">
-              {isLoading ? (
-                <div className="py-16 text-center text-sm text-gray-400">Loading...</div>
-              ) : filteredFiles.length === 0 ? (
-                <div className="py-16 text-center text-sm text-gray-400">No submissions found.</div>
-              ) : viewMode === "list" ? (
-                <div className="rounded-xl border border-gray-100 overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
-                        <TableHead className="text-xs text-gray-400 font-semibold">File</TableHead>
-                        <TableHead className="text-xs text-gray-400 font-semibold">Folder</TableHead>
-                        <TableHead className="text-xs text-gray-400 font-semibold">Coordinator</TableHead>
-                        <TableHead className="text-xs text-gray-400 font-semibold">Uploaded</TableHead>
-                        <TableHead className="text-xs text-gray-400 font-semibold">Size</TableHead>
-                        <TableHead className="text-right text-xs text-gray-400 font-semibold">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pagedFiles.map((r) => (
-                        <TableRow key={r.id} className="hover:bg-gray-50/60 border-gray-50">
-                          <TableCell className="min-w-[260px]">
-                            <div className="flex flex-col">
-                              <span className="font-medium text-sm text-gray-800 truncate max-w-[360px]">{r.name}</span>
-                              {r.description ? (
-                                <span className="text-xs text-gray-400 truncate max-w-[360px]">
-                                  {r.description}
-                                </span>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            <Badge variant="outline" className={`rounded-lg border text-xs ${folderBadgeClass(r.folder)}`}>
-                              {r.folder}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="max-w-[200px] truncate text-sm text-gray-600">
-                            {r.coordinator?.name || r.coordinator?.username || ""}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm text-gray-500">{formatDateTime(r.uploadedAt)}</TableCell>
-                          <TableCell className="whitespace-nowrap text-sm text-gray-500">{formatFileSize(r.size)}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button variant="outline" className="h-7 rounded-lg px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => setViewRow(r)}>
-                                <Eye className="mr-1 size-3" />View
-                              </Button>
-                              <Button variant="outline" className="h-7 rounded-lg px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => handleDownload(r)}>
-                                <Download className="mr-1 size-3" />Download
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {pagedFiles.map((r) => {
-                    const typeText = fileTypeLabel(r.type, r.name)
-                    const showThumb = isImageFile(r.type, r.name)
-                    const thumbSrc = r.url
-                      ? r.url.startsWith("http")
-                        ? r.url
-                        : `${getApiBaseUrl()}${r.url}`
-                      : ""
-                    return (
-                      <div key={r.id} className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200 group">
-                        <div className="relative aspect-[16/9] bg-gray-50 overflow-hidden">
-                          <Badge variant="outline" className="absolute right-2.5 top-2.5 rounded-lg text-xs border-gray-200 bg-white/90 text-gray-500">
-                            {typeText}
-                          </Badge>
-                          {showThumb ? (
-                            <>
-                              <img
-                                src={thumbSrc}
-                                alt={r.name}
-                                loading="lazy"
-                                decoding="async"
-                                fetchPriority="low"
-                                className="absolute inset-0 h-full w-full object-cover"
-                                onError={(e) => {
-                                  const img = e.currentTarget
-                                  img.classList.add("hidden")
-                                  const fallback = img.parentElement?.querySelector(
-                                    '[data-thumb-fallback="true"]'
-                                  ) as HTMLElement | null
-                                  fallback?.classList.remove("hidden")
-                                }}
-                              />
-                              <div
-                                data-thumb-fallback="true"
-                                className="hidden absolute inset-0 flex items-center justify-center"
-                              >
-                                <div className={`rounded-xl p-3 ${accentIconClass(r.folder)}`}>
-                                  <FileText className="size-5" />
-                                </div>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className={`rounded-xl p-3 ${accentIconClass(r.folder)}`}>
-                                <FileText className="size-5" />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-3.5 space-y-2">
-                          <div className="font-semibold text-sm text-gray-800 truncate">{r.name}</div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={`rounded-lg border text-xs ${folderBadgeClass(r.folder)}`}>
-                              {r.folder}
-                            </Badge>
-                            <div className="text-xs text-gray-400 truncate">
-                              {formatFileSize(r.size)}
-                            </div>
-                          </div>
-                          <div className="text-xs text-gray-400 truncate">
-                            {formatDateTime(r.uploadedAt)} · {r.coordinator?.name || r.coordinator?.username || ""}
-                          </div>
-                          <div className="flex justify-end gap-1.5 pt-1">
-                            <Button variant="outline" className="h-7 rounded-xl px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => setViewRow(r)}>
-                              <Eye className="mr-1 size-3" />View
-                            </Button>
-                            <Button variant="outline" className="h-7 rounded-xl px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => handleDownload(r)}>
-                              <Download className="mr-1 size-3" />Download
-                            </Button>
-                          </div>
-                        </div>
+              <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-50 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        className="rounded-xl h-8 px-3 text-xs border-gray-200 text-gray-500 hover:border-gray-300 gap-1.5"
+                        onClick={() => {
+                          setSelectedSchool(null)
+                          setSelectedFolder("all")
+                          setSearch("")
+                        }}
+                      >
+                        <ArrowLeft className="size-3.5" />
+                        Back
+                      </Button>
+                      <div>
+                        <div className="font-semibold text-gray-900 text-sm">{selectedSchool}</div>
+                        <div className="text-xs text-gray-400">{selectedMunicipality}</div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
+                    </div>
 
-              {filteredFiles.length > pageSize && (
-                <div className="mt-4 flex justify-end">
-                  <Pagination className="mx-0 w-auto justify-end">
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            setCurrentPage((p) => Math.max(1, p - 1))
-                          }}
-                          aria-disabled={currentPage === 1}
-                          className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                        />
-                      </PaginationItem>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant={viewMode === "grid" ? "default" : "outline"}
+                        className={`h-8 w-8 rounded-xl p-0 ${viewMode === "grid" ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-600" : "border-gray-200"}`}
+                        onClick={() => setViewMode("grid")}
+                        aria-label="Grid view"
+                      >
+                        <LayoutGrid className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant={viewMode === "list" ? "default" : "outline"}
+                        className={`h-8 w-8 rounded-xl p-0 ${viewMode === "list" ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-600" : "border-gray-200"}`}
+                        onClick={() => setViewMode("list")}
+                        aria-label="List view"
+                      >
+                        <List className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
 
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            href="#"
-                            isActive={page === currentPage}
-                            onClick={(e) => {
-                              e.preventDefault()
-                              setCurrentPage(page)
-                            }}
-                            className={page === currentPage ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+                      <Button
+                        variant={selectedFolder === "all" ? "default" : "outline"}
+                        className={`rounded-xl h-7 px-3 text-xs whitespace-nowrap ${selectedFolder === "all" ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-600" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                        onClick={() => startFiltering(() => setSelectedFolder("all"))}
+                        disabled={isFiltering}
+                      >
+                        All Files
+                      </Button>
+                      {folderPills.map((f) => (
+                        <Button
+                          key={f}
+                          variant={selectedFolder === f ? "default" : "outline"}
+                          className={`rounded-xl h-7 px-3 text-xs whitespace-nowrap ${selectedFolder === f ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-600" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                          onClick={() => startFiltering(() => setSelectedFolder(f))}
+                          disabled={isFiltering}
+                        >
+                          {f}
+                        </Button>
                       ))}
+                    </div>
 
-                      <PaginationItem>
-                        <PaginationNext
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            setCurrentPage((p) => Math.min(totalPages, p + 1))
-                          }}
-                          aria-disabled={currentPage === totalPages}
-                          className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── Right Sidebar ── */}
-          <div className="space-y-3">
-            {/* Date filter */}
-            <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Filter by date</div>
-              <div className="text-xs text-gray-500 mb-3">{rangeLabel}</div>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(d) => setSelectedDate(d || undefined)}
-                numberOfMonths={1}
-                className="rounded-xl border border-gray-100 p-2 bg-white w-full"
-              />
-              <Button
-                variant="outline"
-                className="w-full rounded-xl h-9 mt-3 text-xs border-gray-200 text-gray-500 hover:border-gray-300"
-                onClick={() => setSelectedDate(undefined)}
-              >
-                Clear date
-              </Button>
-            </div>
-
-            {/* School info */}
-            <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">School info</div>
-              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
-                <div className="font-semibold text-sm text-gray-800">{selectedSchool}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{selectedMunicipality}</div>
-              </div>
-            </div>
-
-            {/* File breakdown */}
-            <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">File breakdown</div>
-              {folderBreakdown.length === 0 ? (
-                <div className="text-xs text-gray-400">No files.</div>
-              ) : (
-                <div className="space-y-2.5">
-                  {folderBreakdown.map((b) => (
-                    <div key={b.folder}>
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="text-xs text-gray-600 truncate">{b.folder}</span>
-                        <span className="text-xs font-semibold text-gray-400">{b.count}</span>
-                      </div>
-                      <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${folderFillClass(b.folder)} opacity-70`}
-                          style={{ width: `${Math.min(100, Math.round((b.count / Math.max(1, filteredFiles.length)) * 100))}%` }}
+                    <div className="min-w-[220px]">
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-gray-300" />
+                        <Input
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                          placeholder="Search files…"
+                          className="h-8 rounded-xl pl-8 text-sm border-gray-200 focus-visible:ring-emerald-300 bg-gray-50 placeholder:text-gray-300"
                         />
                       </div>
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="flex justify-end">
+                    <div className="text-xs text-gray-400">
+                      Showing {pagedFiles.length} of {filteredFiles.length} file{filteredFiles.length !== 1 ? "s" : ""}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
+                <div className="p-4">
+                  {isLoading ? (
+                    <div className="py-16 text-center text-sm text-gray-400">Loading...</div>
+                  ) : filteredFiles.length === 0 ? (
+                    <div className="py-16 text-center text-sm text-gray-400">No submissions found.</div>
+                  ) : viewMode === "list" ? (
+                    <div className="rounded-xl border border-gray-100 overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+                            <TableHead className="text-xs text-gray-400 font-semibold">File</TableHead>
+                            <TableHead className="text-xs text-gray-400 font-semibold">Folder</TableHead>
+                            <TableHead className="text-xs text-gray-400 font-semibold">Coordinator</TableHead>
+                            <TableHead className="text-xs text-gray-400 font-semibold">Uploaded</TableHead>
+                            <TableHead className="text-xs text-gray-400 font-semibold">Size</TableHead>
+                            <TableHead className="text-right text-xs text-gray-400 font-semibold">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pagedFiles.map((r) => (
+                            <TableRow key={r.id} className="hover:bg-gray-50/60 border-gray-50">
+                              <TableCell className="min-w-[260px]">
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-sm text-gray-800 truncate max-w-[360px]">{r.name}</span>
+                                  {r.description ? (
+                                    <span className="text-xs text-gray-400 truncate max-w-[360px]">
+                                      {r.description}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                <Badge variant="outline" className={`rounded-lg border text-xs ${folderBadgeClass(r.folder)}`}>
+                                  {r.folder}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="max-w-[200px] truncate text-sm text-gray-600">
+                                {r.coordinator?.name || r.coordinator?.username || ""}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap text-sm text-gray-500">{formatDateTime(r.uploadedAt)}</TableCell>
+                              <TableCell className="whitespace-nowrap text-sm text-gray-500">{formatFileSize(r.size)}</TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button variant="outline" className="h-7 rounded-lg px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => setViewRow(r)}>
+                                    <Eye className="mr-1 size-3" />View
+                                  </Button>
+                                  <Button variant="outline" className="h-7 rounded-lg px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => handleDownload(r)}>
+                                    <Download className="mr-1 size-3" />Download
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {pagedFiles.map((r) => {
+                        const typeText = fileTypeLabel(r.type, r.name)
+                        const showThumb = isImageFile(r.type, r.name)
+                        const thumbSrc = r.url
+                          ? r.url.startsWith("http")
+                            ? r.url
+                            : `${getApiBaseUrl()}${r.url}`
+                          : ""
+                        return (
+                          <div key={r.id} className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-200 group">
+                            <div className="relative aspect-[16/9] bg-gray-50 overflow-hidden">
+                              <Badge variant="outline" className="absolute right-2.5 top-2.5 rounded-lg text-xs border-gray-200 bg-white/90 text-gray-500">
+                                {typeText}
+                              </Badge>
+                              {showThumb ? (
+                                <>
+                                  <img
+                                    src={thumbSrc}
+                                    alt={r.name}
+                                    loading="lazy"
+                                    decoding="async"
+                                    fetchPriority="low"
+                                    className="absolute inset-0 h-full w-full object-cover"
+                                    onError={(e) => {
+                                      const img = e.currentTarget
+                                      img.classList.add("hidden")
+                                      const fallback = img.parentElement?.querySelector(
+                                        '[data-thumb-fallback="true"]'
+                                      ) as HTMLElement | null
+                                      fallback?.classList.remove("hidden")
+                                    }}
+                                  />
+                                  <div
+                                    data-thumb-fallback="true"
+                                    className="hidden absolute inset-0 flex items-center justify-center"
+                                  >
+                                    <div className={`rounded-xl p-3 ${accentIconClass(r.folder)}`}>
+                                      <FileText className="size-5" />
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className={`rounded-xl p-3 ${accentIconClass(r.folder)}`}>
+                                    <FileText className="size-5" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-3.5 space-y-2">
+                              <div className="font-semibold text-sm text-gray-800 truncate">{r.name}</div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className={`rounded-lg border text-xs ${folderBadgeClass(r.folder)}`}>
+                                  {r.folder}
+                                </Badge>
+                                <div className="text-xs text-gray-400 truncate">
+                                  {formatFileSize(r.size)}
+                                </div>
+                              </div>
+                              <div className="text-xs text-gray-400 truncate">
+                                {formatDateTime(r.uploadedAt)} · {r.coordinator?.name || r.coordinator?.username || ""}
+                              </div>
+                              <div className="flex justify-end gap-1.5 pt-1">
+                                <Button variant="outline" className="h-7 rounded-xl px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => setViewRow(r)}>
+                                  <Eye className="mr-1 size-3" />View
+                                </Button>
+                                <Button variant="outline" className="h-7 rounded-xl px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => handleDownload(r)}>
+                                  <Download className="mr-1 size-3" />Download
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {filteredFiles.length > pageSize && (
+                    <div className="mt-4 flex justify-end">
+                      <Pagination className="mx-0 w-auto justify-end">
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                setCurrentPage((p) => Math.max(1, p - 1))
+                              }}
+                              aria-disabled={currentPage === 1}
+                              className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                            />
+                          </PaginationItem>
+
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                            <PaginationItem key={page}>
+                              <PaginationLink
+                                href="#"
+                                isActive={page === currentPage}
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  setCurrentPage(page)
+                                }}
+                                className={page === currentPage ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}
+                              >
+                                {page}
+                              </PaginationLink>
+                            </PaginationItem>
+                          ))}
+
+                          <PaginationItem>
+                            <PaginationNext
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                setCurrentPage((p) => Math.min(totalPages, p + 1))
+                              }}
+                              aria-disabled={currentPage === totalPages}
+                              className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Right Sidebar ── */}
+              <div className="space-y-3">
+                {/* Date filter */}
+                <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Filter by date</div>
+                  <div className="text-xs text-gray-500 mb-3">{rangeLabel}</div>
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(d) => setSelectedDate(d || undefined)}
+                    numberOfMonths={1}
+                    className="rounded-xl border border-gray-100 p-2 bg-white w-full"
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-xl h-9 mt-3 text-xs border-gray-200 text-gray-500 hover:border-gray-300"
+                    onClick={() => setSelectedDate(undefined)}
+                  >
+                    Clear date
+                  </Button>
+                </div>
+
+                {/* School info */}
+                <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">School info</div>
+                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                    <div className="font-semibold text-sm text-gray-800">{selectedSchool}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{selectedMunicipality}</div>
+                  </div>
+                </div>
+
+                {/* File breakdown */}
+                <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">File breakdown</div>
+                  {folderBreakdown.length === 0 ? (
+                    <div className="text-xs text-gray-400">No files.</div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {folderBreakdown.map((b) => (
+                        <div key={b.folder}>
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-xs text-gray-600 truncate">{b.folder}</span>
+                            <span className="text-xs font-semibold text-gray-400">{b.count}</span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${folderFillClass(b.folder)} opacity-70`}
+                              style={{ width: `${Math.min(100, Math.round((b.count / Math.max(1, filteredFiles.length)) * 100))}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </motion.div>
         )}
