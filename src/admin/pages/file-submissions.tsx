@@ -1,4 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react"
+import * as XLSX from "xlsx"
+import mammoth from "mammoth"
 import { format } from "date-fns"
 import { AnimatePresence, motion } from "motion/react"
 import { toast } from "sonner"
@@ -21,7 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -247,6 +249,14 @@ export function AdminFileSubmissions() {
   const [isLoading, setIsLoading] = useState(false)
 
   const [viewRow, setViewRow] = useState<AdminFileSubmissionRow | null>(null)
+  const [viewBlobUrl, setViewBlobUrl] = useState<string | null>(null)
+  const [previewContent, setPreviewContent] = useState<{
+    type: "image" | "pdf" | "docx" | "xlsx" | "other"
+    html?: string
+    tableData?: any[][]
+    loading: boolean
+  }>({ type: "other", loading: false })
+
 
   const [currentPage, setCurrentPage] = useState(1)
   const [pageByFolder, setPageByFolder] = useState<Record<string, number>>({ all: 1 })
@@ -374,17 +384,83 @@ export function AdminFileSubmissions() {
     if (currentPage > totalPages) setCurrentPage(totalPages)
   }, [currentPage, totalPages])
 
-  const handleDownload = async (row: AdminFileSubmissionRow) => {
+  const cleanupViewBlob = () => {
+    if (viewBlobUrl) {
+      window.URL.revokeObjectURL(viewBlobUrl)
+      setViewBlobUrl(null)
+    }
+    setPreviewContent({ type: "other", loading: false })
+  }
+
+  useEffect(() => {
+    if (!viewRow) {
+      cleanupViewBlob()
+      return
+    }
+
+    const isPDF = viewRow.type?.includes("pdf")
+    const isImage = viewRow.type?.startsWith("image/")
+    const isDocx = viewRow.name.toLowerCase().endsWith(".docx")
+    const isXlsx = viewRow.name.toLowerCase().endsWith(".xlsx") || viewRow.name.toLowerCase().endsWith(".xls")
+
+    setPreviewContent({
+      type: isPDF ? "pdf" : isImage ? "image" : isDocx ? "docx" : isXlsx ? "xlsx" : "other",
+      loading: true
+    })
+
+    void (async () => {
+      try {
+        const token = getAuthToken()
+        if (!token) return
+        const res = await fetch(`${getApiBaseUrl()}/api/admin/file-submissions/download/${encodeURIComponent(viewRow.id)}?view=true`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) throw new Error("Failed to fetch file")
+
+        const blob = await res.blob()
+        const arrayBuffer = await blob.arrayBuffer()
+        const blobUrl = window.URL.createObjectURL(blob)
+        setViewBlobUrl(blobUrl)
+
+        if (isDocx) {
+          // Use mammoth to convert DOCX → clean HTML string
+          const result = await mammoth.convertToHtml({ arrayBuffer })
+          setPreviewContent(prev => ({ ...prev, html: result.value, loading: false }))
+        } else if (isXlsx) {
+          const workbook = XLSX.read(arrayBuffer, { type: "array" })
+          const firstSheetName = workbook.SheetNames[0]
+          const worksheet = workbook.Sheets[firstSheetName]
+          const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
+          setPreviewContent(prev => ({ ...prev, tableData: data, loading: false }))
+        } else {
+          setPreviewContent(prev => ({ ...prev, loading: false }))
+        }
+      } catch (err) {
+        console.error("Failed to load preview:", err)
+        setPreviewContent(prev => ({ ...prev, loading: false }))
+      }
+    })()
+
+    return () => cleanupViewBlob()
+  }, [viewRow])
+
+
+  const handleDownload = async (row: AdminFileSubmissionRow, isView = false) => {
     try {
       const token = getAuthToken()
       if (!token) throw new Error("Not authenticated")
 
+      if (isView) {
+        // Always open the in-app dialog preview
+        setViewRow(row)
+        return
+      }
+
+      // Download flow
       const res = await fetch(`${getApiBaseUrl()}/api/admin/file-submissions/download/${encodeURIComponent(row.id)}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-
       if (!res.ok) throw new Error("Download failed")
-
       const blob = await res.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -392,10 +468,21 @@ export function AdminFileSubmissions() {
       a.download = row.name || "file"
       document.body.appendChild(a)
       a.click()
-      window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
+      setTimeout(() => window.URL.revokeObjectURL(url), 100)
     } catch (e: any) {
-      toast.error(e?.message || "Failed to download")
+      toast.error(e?.message || "Failed to handle file request")
+    }
+  }
+
+  const handleOpenNewTab = (row: AdminFileSubmissionRow) => {
+    try {
+      const token = getAuthToken()
+      if (!token) throw new Error("Not authenticated")
+      const backendUrl = `${getApiBaseUrl()}/api/admin/file-submissions/download/${encodeURIComponent(row.id)}?view=true&token=${encodeURIComponent(token)}`
+      window.open(backendUrl, "_blank")
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to open file")
     }
   }
 
@@ -832,8 +919,8 @@ export function AdminFileSubmissions() {
                               <TableCell className="whitespace-nowrap text-sm text-gray-500">{formatFileSize(r.size)}</TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1">
-                                  <Button variant="outline" className="h-7 rounded-lg px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => setViewRow(r)}>
-                                    <Eye className="mr-1 size-3" />View
+                                  <Button variant="outline" className="h-7 rounded-lg px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => handleDownload(r, true)}>
+                                    <Eye className="mr-1 size-3" />Preview
                                   </Button>
                                   <Button variant="outline" className="h-7 rounded-lg px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => handleDownload(r)}>
                                     <Download className="mr-1 size-3" />Download
@@ -910,8 +997,8 @@ export function AdminFileSubmissions() {
                                 {formatDateTime(r.uploadedAt)} · {r.coordinator?.name || r.coordinator?.username || ""}
                               </div>
                               <div className="flex justify-end gap-1.5 pt-1">
-                                <Button variant="outline" className="h-7 rounded-xl px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => setViewRow(r)}>
-                                  <Eye className="mr-1 size-3" />View
+                                <Button variant="outline" className="h-7 rounded-xl px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => handleDownload(r, true)}>
+                                  <Eye className="mr-1 size-3" />Preview
                                 </Button>
                                 <Button variant="outline" className="h-7 rounded-xl px-2.5 text-xs border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => handleDownload(r)}>
                                   <Download className="mr-1 size-3" />Download
@@ -1036,81 +1123,245 @@ export function AdminFileSubmissions() {
       </AnimatePresence>
 
       <Dialog open={!!viewRow} onOpenChange={(open) => !open && setViewRow(null)}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-gray-900">Submission</DialogTitle>
-            <DialogDescription className="text-xs text-gray-400">
-              {viewRow?.folder || ""}
-            </DialogDescription>
-          </DialogHeader>
-
-          {viewRow ? (
-            <div className="grid gap-4">
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">File</Label>
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700 break-words">
-                  {viewRow.name}
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="grid gap-1.5">
-                  <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Coordinator</Label>
-                  <div className="text-sm text-gray-700">
-                    {viewRow.coordinator?.name || viewRow.coordinator?.username || ""}
-                  </div>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Uploaded</Label>
-                  <div className="text-sm text-gray-700">{formatDateTime(viewRow.uploadedAt)}</div>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="grid gap-1.5">
-                  <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Municipality</Label>
-                  <div className="text-sm text-gray-700">{viewRow.coordinator?.municipality || ""}</div>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">School</Label>
-                  <div className="text-sm text-gray-700">{viewRow.coordinator?.school || ""}</div>
-                </div>
-              </div>
-
-              {viewRow.description ? (
-                <div className="grid gap-1.5">
-                  <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Description</Label>
-                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700 whitespace-pre-wrap break-words">
-                    {viewRow.description}
-                  </div>
-                </div>
-              ) : null}
-
-              {viewRow.type?.startsWith("image/") && viewRow.url ? (
-                <div className="grid gap-1.5">
-                  <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Preview</Label>
-                  <div className="rounded-xl border border-gray-100 overflow-hidden bg-gray-50">
-                    <img
-                      src={`${getApiBaseUrl()}${viewRow.url}`}
-                      alt={viewRow.name}
-                      className="w-full max-h-[420px] object-contain"
-                      loading="lazy"
-                    />
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="flex justify-end gap-2 pt-1">
-                <Button variant="outline" className="rounded-xl h-9 px-4 text-sm border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => setViewRow(null)}>
-                  Close
-                </Button>
-                <Button className="rounded-xl h-9 px-4 text-sm bg-emerald-600 hover:bg-emerald-700 border-emerald-600" onClick={() => handleDownload(viewRow)}>
-                  <Download className="mr-2 size-3.5" />
-                  Download
-                </Button>
-              </div>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-5xl max-h-[92vh] overflow-y-auto rounded-3xl border-none p-0 bg-gray-50/95 backdrop-blur-md">
+          <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 p-4 flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-base font-bold text-gray-900 leading-none">Document Preview</DialogTitle>
+              <DialogDescription className="text-xs text-gray-400 mt-1">
+                {viewRow?.name || ""}
+              </DialogDescription>
             </div>
-          ) : null}
+            <Button variant="ghost" size="icon" className="rounded-full size-8" onClick={() => setViewRow(null)}>
+              <span className="sr-only">Close</span>
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </Button>
+          </div>
+
+          <div className="p-6">
+            {viewRow ? (
+              <div className="grid gap-4">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">File</Label>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700 break-words">
+                    {viewRow.name}
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Coordinator</Label>
+                    <div className="text-sm text-gray-700">
+                      {viewRow.coordinator?.name || viewRow.coordinator?.username || ""}
+                    </div>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Uploaded</Label>
+                    <div className="text-sm text-gray-700">{formatDateTime(viewRow.uploadedAt)}</div>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Municipality</Label>
+                    <div className="text-sm text-gray-700">{viewRow.coordinator?.municipality || ""}</div>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">School</Label>
+                    <div className="text-sm text-gray-700">{viewRow.coordinator?.school || ""}</div>
+                  </div>
+                </div>
+
+                {viewRow.description ? (
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Description</Label>
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700 whitespace-pre-wrap break-words">
+                      {viewRow.description}
+                    </div>
+                  </div>
+                ) : null}
+
+                {viewRow.type?.startsWith("image/") ? (
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Image Preview</Label>
+                    <div className="rounded-xl border border-gray-100 overflow-hidden bg-white flex justify-center p-2 min-h-[300px] items-center shadow-inner">
+                      {previewContent.loading ? (
+                        <div className="flex flex-col items-center gap-2 text-gray-400">
+                          <div className="size-6 animate-spin rounded-full border-2 border-gray-200 border-t-emerald-500" />
+                          <span className="text-xs font-medium">Processing image...</span>
+                        </div>
+                      ) : viewBlobUrl ? (
+                        <img
+                          src={viewBlobUrl}
+                          alt={viewRow.name}
+                          className="max-w-full max-h-[500px] object-contain rounded-lg shadow-sm"
+                        />
+                      ) : (
+                        <div className="text-center py-12 text-gray-400 text-sm italic">Image failed to load.</div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {viewRow.type?.includes("pdf") ? (
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">PDF Preview</Label>
+                    <div className="rounded-xl border border-gray-100 overflow-hidden bg-gray-600 h-[600px] flex items-center justify-center shadow-inner relative">
+                      {previewContent.loading ? (
+                        <div className="flex flex-col items-center gap-2 text-white/60">
+                          <div className="size-8 animate-spin rounded-full border-2 border-white/20 border-t-emerald-400" />
+                          <span className="text-xs font-medium">Loading document...</span>
+                        </div>
+                      ) : viewBlobUrl ? (
+                        <iframe
+                          src={`${viewBlobUrl}#toolbar=0`}
+                          className="w-full h-full border-none"
+                          title="PDF Preview"
+                        />
+                      ) : (
+                        <div className="text-center text-white/40 text-sm">PDF viewer failed to start.</div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {viewRow.name.toLowerCase().endsWith(".docx") ? (
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Document Preview (DOCX)</Label>
+                    <div className="relative rounded-2xl border border-gray-200 overflow-hidden bg-[#f4f5f7]">
+                      {previewContent.loading ? (
+                        <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-400">
+                          <div className="size-10 animate-spin rounded-full border-2 border-gray-200 border-t-emerald-500" />
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Processing Document...</span>
+                        </div>
+                      ) : previewContent.html ? (
+                        <iframe
+                          title="DOCX Preview"
+                          className="w-full border-none"
+                          style={{ minHeight: "500px", height: "70vh" }}
+                          srcDoc={`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    background: #f4f5f7;
+    margin: 0;
+    padding: 2rem;
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #1a1a1a;
+  }
+  .doc-page {
+    background: white;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 2.5cm 2.5cm 2.5cm 3cm;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1px 6px rgba(0,0,0,0.06);
+    border: 1px solid #dde1e7;
+    border-radius: 4px;
+    min-height: 29.7cm;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+  td, th { border: 1px solid #ccc; padding: 6px 10px; }
+  th { background: #f5f5f5; font-weight: bold; }
+  p { margin: 0 0 0.5em 0; }
+  h1,h2,h3,h4,h5,h6 { margin: 0.8em 0 0.4em 0; }
+  img { max-width: 100%; height: auto; }
+  ul, ol { padding-left: 2em; margin: 0.4em 0; }
+</style>
+</head>
+<body>
+<div class="doc-page">
+${previewContent.html}
+</div>
+</body>
+</html>`}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-64 gap-2 text-gray-400">
+                          <FileText className="size-10 text-gray-300" />
+                          <span className="text-sm">Could not render document preview.</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {(viewRow.name.toLowerCase().endsWith(".xlsx") || viewRow.name.toLowerCase().endsWith(".xls")) ? (
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Spreadsheet Preview (XLSX)</Label>
+                    <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-inner max-h-[500px]">
+                      {previewContent.loading ? (
+                        <div className="flex flex-col items-center py-16 gap-3 text-gray-400">
+                          <div className="size-8 animate-spin rounded-full border-2 border-gray-200 border-t-emerald-500" />
+                          <span className="text-sm font-medium">Reading spreadsheet data...</span>
+                        </div>
+                      ) : previewContent.tableData ? (
+                        <div className="overflow-auto max-h-[500px]">
+                          <table className="w-full text-xs text-left border-collapse">
+                            <thead className="sticky top-0 bg-gray-50 border-b border-gray-100 z-10 shadow-sm">
+                              <tr>
+                                {previewContent.tableData[0]?.map((cell: any, i: number) => (
+                                  <th key={i} className="px-3 py-2.5 font-bold text-gray-600 border-r border-gray-100 last:border-0 bg-gray-50/90 backdrop-blur-sm whitespace-nowrap uppercase tracking-wider">{String(cell || "")}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {previewContent.tableData.slice(1).map((row: any[], i: number) => (
+                                <tr key={i} className="border-b border-gray-50 last:border-0 hover:bg-emerald-50/30 transition-colors">
+                                  {row.map((cell: any, j: number) => (
+                                    <td key={j} className="px-3 py-2 text-gray-600 border-r border-gray-50 last:border-0 whitespace-nowrap min-w-[120px]">{String(cell || "")}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-16 text-gray-400 text-sm italic">No data found in spreadsheet.</div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {previewContent.type === "other" && !previewContent.loading && (
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">In-Browser View</Label>
+                    <div className="bg-emerald-50/50 border border-emerald-100 p-8 rounded-2xl flex flex-col items-center gap-5 text-center">
+                      <div className="size-16 rounded-3xl bg-white border border-emerald-100 flex items-center justify-center shadow-md">
+                        <FileText className="size-8 text-emerald-600" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <p className="text-base font-bold text-emerald-950">In-Browser Viewing Available</p>
+                        <p className="text-sm text-emerald-600/70 max-w-[280px]">This file can be opened in a new tab for native browser viewing.</p>
+                      </div>
+                      <Button className="rounded-xl h-11 px-8 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200/50 group" onClick={() => handleOpenNewTab(viewRow)}>
+                        Open in New Tab <ArrowRight className="ml-2 size-4 transition-transform group-hover:translate-x-0.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button variant="outline" className="rounded-xl h-9 px-4 text-sm border-gray-200 text-gray-600 hover:border-gray-300" onClick={() => setViewRow(null)}>
+                    Close
+                  </Button>
+                  {!(viewRow.name.toLowerCase().endsWith(".docx") || viewRow.name.toLowerCase().endsWith(".xlsx") || viewRow.name.toLowerCase().endsWith(".xls")) && (
+                    <Button variant="outline" className="rounded-xl h-9 px-4 text-sm border-emerald-200 text-emerald-600 hover:bg-emerald-50" onClick={() => handleOpenNewTab(viewRow)}>
+                      <Eye className="mr-2 size-3.5" />
+                      Open in New Tab
+                    </Button>
+                  )}
+                  <Button className="rounded-xl h-9 px-4 text-sm bg-emerald-600 hover:bg-emerald-700 border-emerald-600" onClick={() => handleDownload(viewRow)}>
+                    <Download className="mr-2 size-3.5" />
+                    Download
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

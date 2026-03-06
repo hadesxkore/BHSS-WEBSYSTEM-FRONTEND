@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Truck,
   ClipboardCheck,
+  ClipboardList,
   BookOpen,
   CircleUserRound,
   Bell,
@@ -52,6 +53,7 @@ import { UserAnnouncements } from "./pages/announcements"
 import { UserEventCalendar } from "./pages/event-calendar"
 import { UserInstructions } from "./pages/instructions"
 import { FileSubmission } from "@/users/pages/file-submission"
+import { UserActivities } from "@/users/pages/activities"
 
 type UserSidebarLayoutProps = {
   userEmail?: string
@@ -328,6 +330,11 @@ const ALL_MENU_ITEMS: UserMenuItem[] = [
     title: "File Submission",
     icon: FileText,
     component: FileSubmission,
+  },
+  {
+    title: "Activities",
+    icon: ClipboardList,
+    component: UserActivities,
   },
   {
     title: "Account",

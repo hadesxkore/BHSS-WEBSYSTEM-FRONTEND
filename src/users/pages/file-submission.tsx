@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { format } from "date-fns"
 import {
   Folder,
@@ -184,6 +184,8 @@ export function FileSubmission() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [isLoading, setIsLoading] = useState(false)
   const [folderCounts, setFolderCounts] = useState<Record<string, number>>({})
+  const [convertingPdf, setConvertingPdf] = useState<{ show: boolean; fileName: string }>({ show: false, fileName: "" })
+  const convertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const apiFetch = async (url: string, options?: RequestInit) => {
     const res = await fetch(`${getApiBaseUrl()}${url}`, {
@@ -197,6 +199,33 @@ export function FileSubmission() {
     if (!res.ok) throw new Error(await res.text())
     return res.json()
   }
+
+  // Socket: listen for PDF ready event to dismiss conversion modal
+  useEffect(() => {
+    let socket: any = null
+    let mounted = true
+      ; (async () => {
+        try {
+          const { io } = await import("socket.io-client")
+          socket = io(getApiBaseUrl(), { transports: ["websocket", "polling"] })
+          socket.on("file-submission:pdf-ready", (data: any) => {
+            if (!mounted) return
+            if (data?.userId === auth?.user?.id) {
+              if (convertTimerRef.current) clearTimeout(convertTimerRef.current)
+              setConvertingPdf({ show: false, fileName: "" })
+              fetchFiles()
+            }
+          })
+        } catch (e) {
+          // socket not available, fallback timer handles it
+        }
+      })()
+    return () => {
+      mounted = false
+      socket?.disconnect()
+      if (convertTimerRef.current) clearTimeout(convertTimerRef.current)
+    }
+  }, [auth?.user?.id])
 
   useEffect(() => {
     if (!isCoordinator) return
@@ -246,6 +275,9 @@ export function FileSubmission() {
       }
     }
 
+    const hasDocx = files.some((f) => f.name.toLowerCase().endsWith(".docx"))
+    const docxFile = files.find((f) => f.name.toLowerCase().endsWith(".docx"))
+
     setIsUploading(true)
     try {
       const formData = new FormData()
@@ -272,6 +304,16 @@ export function FileSubmission() {
       setIsUploadDialogOpen(false)
       fetchFiles()
       fetchFolderCounts()
+
+      // Show PDF conversion modal for DOCX uploads
+      if (hasDocx && docxFile) {
+        setConvertingPdf({ show: true, fileName: docxFile.name })
+        // Fallback: auto-dismiss after 60s in case socket event is missed
+        if (convertTimerRef.current) clearTimeout(convertTimerRef.current)
+        convertTimerRef.current = setTimeout(() => {
+          setConvertingPdf({ show: false, fileName: "" })
+        }, 60_000)
+      }
     } catch (err: any) {
       sileo.error({ title: err?.message || "Failed to upload files" })
     } finally {
@@ -1085,6 +1127,74 @@ export function FileSubmission() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* DOCX → PDF Conversion Modal */}
+      <Dialog open={convertingPdf.show} onOpenChange={() => { }}>
+        <DialogContent showCloseButton={false} className="w-[420px] max-w-[95vw] rounded-3xl border-0 shadow-2xl p-0 overflow-hidden sm:max-w-[420px]">
+          <div className="relative">
+            {/* Header gradient */}
+            <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 px-8 pt-8 pb-6 text-white">
+              <div className="flex items-center gap-4">
+                <div className="relative flex size-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
+                  <FileText className="size-7 text-white" />
+                  <div className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-white">
+                    <Loader2 className="size-3 animate-spin text-blue-600" />
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold leading-none">Converting to PDF</h2>
+                  <p className="mt-1 text-sm text-blue-200">This may take a few moments</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="bg-white px-8 py-6 space-y-5">
+              {/* File name chip */}
+              <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                <FileText className="size-4 text-blue-600 shrink-0" />
+                <p className="text-sm font-medium text-blue-900 truncate">{convertingPdf.fileName}</p>
+              </div>
+
+              {/* Progress steps */}
+              <div className="space-y-3">
+                {[
+                  { label: "Uploading file", done: true },
+                  { label: "Parsing document structure", done: true },
+                  { label: "Rendering to PDF format", done: false, active: true },
+                  { label: "Saving converted file", done: false },
+                ].map((step, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className={cn(
+                      "size-5 rounded-full flex items-center justify-center shrink-0 transition-all",
+                      step.done ? "bg-emerald-500" : step.active ? "bg-blue-500" : "bg-gray-200"
+                    )}>
+                      {step.done ? (
+                        <CheckCircle2 className="size-3.5 text-white" />
+                      ) : step.active ? (
+                        <Loader2 className="size-3 animate-spin text-white" />
+                      ) : (
+                        <div className="size-2 rounded-full bg-gray-400" />
+                      )}
+                    </div>
+                    <span className={cn(
+                      "text-sm",
+                      step.done ? "text-gray-500 line-through" : step.active ? "font-semibold text-gray-900" : "text-gray-400"
+                    )}>
+                      {step.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-center text-xs text-gray-400">
+                Please don't close this page while conversion is in progress
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+
   )
 }

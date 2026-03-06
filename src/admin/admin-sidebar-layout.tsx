@@ -1,4 +1,4 @@
-import type React from "react"
+import React, { useState } from "react"
 import {
   LayoutDashboard,
   Building2,
@@ -8,11 +8,13 @@ import {
   ShoppingCart,
   Package,
   ClipboardCheck,
+  ClipboardList,
   Truck,
   LogOut,
   Users,
   FileText,
   TriangleAlert,
+  ChevronRight,
 } from "lucide-react"
 import {
   Sidebar,
@@ -58,6 +60,7 @@ import { AdminDeliveryConcernSummary } from "./pages/delivery-concern-summary"
 import { AdminEventCalendar } from "./pages/event-calendar"
 import { AdminEventAnnouncements } from "./pages/event-announcements"
 import { AdminFileSubmissions } from "./pages/file-submissions"
+import { AdminActivities } from "./pages/activities"
 import { AdminGlobalNotifications } from "./components/admin-global-notifications"
 
 type AdminSidebarLayoutProps = {
@@ -178,6 +181,11 @@ const menuItems: MenuItem[] = [
     component: AdminFileSubmissions,
   },
   {
+    title: "Activities",
+    icon: ClipboardList,
+    component: AdminActivities,
+  },
+  {
     title: "Users",
     icon: Users,
     component: AdminUsers,
@@ -190,6 +198,14 @@ export function AdminSidebarLayout({
 }: AdminSidebarLayoutProps) {
   const activeItem = useAdminNavStore((s) => s.activeItem)
   const setActiveItem = useAdminNavStore((s) => s.setActiveItem)
+
+  const [expandedItems, setExpandedItems] = useState<string[]>([])
+
+  const toggleExpand = (title: string) => {
+    setExpandedItems((prev) =>
+      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title],
+    )
+  }
 
   const ActiveComponent = (() => {
     for (const item of menuItems) {
@@ -217,7 +233,7 @@ export function AdminSidebarLayout({
     <IdleScreensaver title="Admin Dashboard" subtitle="BHSS Web System" idleMs={30000} intervalMs={6000}>
       <SidebarProvider
         className="bg-[#f5faf7] has-data-[variant=inset]:!bg-[#f5faf7]"
-        style={{ fontFamily: '"Artico Soft-Medium","Mona Sans","Helvetica Neue",Helvetica,Arial,sans-serif' }}
+        style={{ fontFamily: '"Inter", "Mona Sans", "Helvetica Neue", Helvetica, Arial, sans-serif' }}
       >
         <AdminGlobalNotifications />
         <Sidebar
@@ -258,14 +274,25 @@ export function AdminSidebarLayout({
                         <SidebarMenuButton
                           className="w-full my-0.5 text-[15px] text-neutral-800 [&>svg]:size-5 rounded-2xl border border-transparent bg-transparent hover:bg-emerald-600 hover:text-white hover:[&>svg]:text-white data-[active=true]:bg-emerald-600 data-[active=true]:text-white data-[active=true]:border-transparent data-[active=true]:shadow-none transition-colors px-3.5 py-2.5 h-11 gap-2.5"
                           isActive={isParentActive}
-                          onClick={() => setActiveItem(item.title)}
+                          onClick={() => {
+                            setActiveItem(item.title)
+                            if (hasSub) toggleExpand(item.title)
+                          }}
                           tooltip={item.title}
                         >
                           <item.icon />
-                          <span>{item.title}</span>
+                          <span className="flex-1">{item.title}</span>
+                          {hasSub && (
+                            <ChevronRight
+                              className={`ml-auto size-4 transition-transform duration-200 ${expandedItems.includes(item.title) ? "rotate-90" : ""
+                                }`}
+                            />
+                          )}
                         </SidebarMenuButton>
 
-                        {hasSub ? (
+                        {hasSub &&
+                          (expandedItems.includes(item.title) ||
+                            item.subItems!.some((s) => `${item.title}:${s.title}` === activeItem)) ? (
                           <SidebarMenuSub>
                             {item.subItems!.map((sub) => (
                               <SidebarMenuSubItem key={sub.title}>
